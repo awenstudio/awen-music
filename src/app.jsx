@@ -193,7 +193,7 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
       {/* top bar */}
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark">awen<span>music</span></div>
+          <div className="brand-mark">Awen</div>
           <div className="brand-sub">MATRIX GENERATOR</div>
         </div>
         <div className="modes">
