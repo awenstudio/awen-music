@@ -2231,6 +2231,16 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
           onClick={() => switchMode(m)}>{MODE_INFO[m].label}</button>
           )}
         </div>
+        <button type="button"
+          className={'help-btn' + (t.useAI ? ' on' : '')}
+          style={t.useAI ? {background:'rgba(127,212,201,0.15)',color:'var(--accent)'} : {}}
+          title={t.useAI ? 'AI 生成已开启' : 'AI 生成已关闭（使用模板引擎）'}
+          onClick={() => {
+            if (!t.useAI) localStorage.removeItem('awen_music_token');
+            setTweak('useAI', !t.useAI);
+          }}>
+          ✦ AI {t.useAI ? 'ON' : 'OFF'}
+        </button>
         <button type="button" className="help-btn" onClick={() => setShowGuide(true)}>
           <span className="help-q">?</span> {T('help')}
         </button>
