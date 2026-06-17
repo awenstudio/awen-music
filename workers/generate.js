@@ -90,7 +90,7 @@ export default {
       };
       body = JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: 16384,
         messages: [{ role: 'user', content: prompt }],
       });
     } else {
@@ -101,7 +101,7 @@ export default {
       };
       body = JSON.stringify({
         model,
-        max_tokens: 4096,
+        max_tokens: 16384,
         messages: [{ role: 'user', content: prompt }],
       });
     }
