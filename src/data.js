@@ -261,8 +261,27 @@
     };
   }
 
+  const PRESETS = [
+    { key: 'deep-focus', icon: '🎯', label: 'Deep Focus', zh: '深度专注',
+      sel: { environment: 'Library', nature: 'Rain', time: 'Night', mood: 'Focused', instrument: 'Felt Piano', style: 'Ambient', bpm: 60 } },
+    { key: 'morning-coffee', icon: '☕', label: 'Morning Coffee', zh: '晨间咖啡',
+      sel: { environment: 'Cozy Desk', nature: 'Birdsong', time: 'Early Morning', mood: 'Warm', instrument: 'Acoustic Guitar', style: 'Lo-fi Hip Hop', bpm: 72 } },
+    { key: 'rainy-day', icon: '🌧', label: 'Rainy Day', zh: '雨天发呆',
+      sel: { environment: 'Rainy Window', nature: 'Rain', time: 'Afternoon', mood: 'Nostalgic', instrument: 'Rhodes', style: 'Chillhop', bpm: 68 } },
+    { key: 'late-night', icon: '🌙', label: 'Late Night', zh: '深夜独处',
+      sel: { environment: 'Night City', nature: 'Light Snow', time: 'Midnight', mood: 'Lonely', instrument: 'Warm Pad', style: 'Drone Ambient', bpm: 55 } },
+    { key: 'forest-escape', icon: '🌲', label: 'Forest Escape', zh: '森林逃离',
+      sel: { environment: 'Forest Cabin', nature: 'Forest Stream', time: 'Golden Hour', mood: 'Calm', instrument: 'Acoustic Guitar', style: 'Neo Classical', bpm: 62 } },
+    { key: 'dreamy-dusk', icon: '🌅', label: 'Dreamy Dusk', zh: '黄昏入梦',
+      sel: { environment: 'Ocean View', nature: 'Ocean Waves', time: 'Dusk', mood: 'Dreamy', instrument: 'Harp', style: 'Ambient', bpm: 58 } },
+    { key: 'cozy-winter', icon: '🔥', label: 'Cozy Winter', zh: '冬日壁炉',
+      sel: { environment: 'Mountain Lodge', nature: 'Fireplace', time: 'Evening', mood: 'Cozy', instrument: 'Cello', style: 'Minimal Piano', bpm: 58 } },
+    { key: 'zen-garden', icon: '🍃', label: 'Zen Garden', zh: '禅意庭院',
+      sel: { environment: 'Kyoto Study Room', nature: 'Rustling Leaves', time: 'Dawn', mood: 'Calm', instrument: 'Music Box', style: 'Ambient', bpm: 55 } },
+  ];
+
   window.AWEN = {
-    DIMS, BPM, DEFAULTS, REFERENCE, CONTENT_KEYS,
+    DIMS, BPM, DEFAULTS, REFERENCE, CONTENT_KEYS, PRESETS,
     randomSelection, mutations, fallbackPrompt, rand,
     ALBUM_AXES, buildAlbum, anchorDims, fallbackAlbum,
   };

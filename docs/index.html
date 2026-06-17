@@ -91,6 +91,16 @@
 
   .mode-hint{ max-width:1240px; margin:13px auto 0; font-size:13px; color:var(--ink-dim); }
 
+  /* ============================ PRESETS ============================ */
+  .presets{ max-width:1240px; margin:12px auto 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .presets-label{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); margin-right:4px; white-space:nowrap; }
+  .preset-btn{ display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:20px;
+    background:var(--panel); border:1px solid var(--line); color:var(--ink); font-size:13px;
+    cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .preset-btn:hover{ border-color:var(--accent); color:var(--accent); background:rgba(127,212,201,.08); }
+  .preset-icon{ font-size:15px; }
+  .preset-name{ font-size:12px; }
+
   /* ============================ REFERENCE CARD ============================ */
   .refcard{ max-width:1240px; margin:16px auto 0; display:flex; gap:18px; align-items:stretch;
             background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -686,8 +696,27 @@
     };
   }
 
+  const PRESETS = [
+    { key: 'deep-focus', icon: '🎯', label: 'Deep Focus', zh: '深度专注',
+      sel: { environment: 'Library', nature: 'Rain', time: 'Night', mood: 'Focused', instrument: 'Felt Piano', style: 'Ambient', bpm: 60 } },
+    { key: 'morning-coffee', icon: '☕', label: 'Morning Coffee', zh: '晨间咖啡',
+      sel: { environment: 'Cozy Desk', nature: 'Birdsong', time: 'Early Morning', mood: 'Warm', instrument: 'Acoustic Guitar', style: 'Lo-fi Hip Hop', bpm: 72 } },
+    { key: 'rainy-day', icon: '🌧', label: 'Rainy Day', zh: '雨天发呆',
+      sel: { environment: 'Rainy Window', nature: 'Rain', time: 'Afternoon', mood: 'Nostalgic', instrument: 'Rhodes', style: 'Chillhop', bpm: 68 } },
+    { key: 'late-night', icon: '🌙', label: 'Late Night', zh: '深夜独处',
+      sel: { environment: 'Night City', nature: 'Light Snow', time: 'Midnight', mood: 'Lonely', instrument: 'Warm Pad', style: 'Drone Ambient', bpm: 55 } },
+    { key: 'forest-escape', icon: '🌲', label: 'Forest Escape', zh: '森林逃离',
+      sel: { environment: 'Forest Cabin', nature: 'Forest Stream', time: 'Golden Hour', mood: 'Calm', instrument: 'Acoustic Guitar', style: 'Neo Classical', bpm: 62 } },
+    { key: 'dreamy-dusk', icon: '🌅', label: 'Dreamy Dusk', zh: '黄昏入梦',
+      sel: { environment: 'Ocean View', nature: 'Ocean Waves', time: 'Dusk', mood: 'Dreamy', instrument: 'Harp', style: 'Ambient', bpm: 58 } },
+    { key: 'cozy-winter', icon: '🔥', label: 'Cozy Winter', zh: '冬日壁炉',
+      sel: { environment: 'Mountain Lodge', nature: 'Fireplace', time: 'Evening', mood: 'Cozy', instrument: 'Cello', style: 'Minimal Piano', bpm: 58 } },
+    { key: 'zen-garden', icon: '🍃', label: 'Zen Garden', zh: '禅意庭院',
+      sel: { environment: 'Kyoto Study Room', nature: 'Rustling Leaves', time: 'Dawn', mood: 'Calm', instrument: 'Music Box', style: 'Ambient', bpm: 55 } },
+  ];
+
   window.AWEN = {
-    DIMS, BPM, DEFAULTS, REFERENCE, CONTENT_KEYS,
+    DIMS, BPM, DEFAULTS, REFERENCE, CONTENT_KEYS, PRESETS,
     randomSelection, mutations, fallbackPrompt, rand,
     ALBUM_AXES, buildAlbum, anchorDims, fallbackAlbum,
   };
@@ -740,6 +769,7 @@
       copyFullAlbum: '复制整张专辑',
       brandRange: '品牌区间 55–70',
       tempo: '速度',
+      presetsLabel: '快速开始',
     },
     en: {
       help: 'How it works',
@@ -782,6 +812,7 @@
       copyFullAlbum: 'Copy full album',
       brandRange: 'brand range 55–70',
       tempo: 'Tempo',
+      presetsLabel: 'Quick start',
     },
   };
 
@@ -790,18 +821,19 @@
       kicker: '使用指南 · HOW IT WORKS',
       title: '把一首主流 Lo-fi 拆成一座工厂',
       lead: '这是一台「矩阵生成器」：把 Lo-fi 拆成可组合的元素，重新排列组合出新歌与整张专辑，并产出可直接用的 Suno / Veo Prompt。',
-      stepsH: '三步流程',
+      stepsH: '四个标签页',
       steps: [
-        { t: '定身份', d: '在矩阵盘上每列点一个元素，拼出这首歌（或这张专辑）的声音底色：环境 · 自然 · 时间 · 情绪 · 乐器 · 风格 · BPM。' },
-        { t: '生成', d: '点 Generate，AI 实时写出歌名 + Suno Prompt + Veo 视频 Prompt。Album 模式则一次铺出整张连贯专辑。' },
-        { t: '复制 → 出歌', d: '点卡片上的复制按钮，把 Prompt 粘进 Suno 生成音频、粘进 Veo 生成画面。复制内容已分段标好，照着填即可。' },
+        { t: 'Pick 点选', d: '最基础的模式。矩阵盘上每列有一堆选项（环境、自然、时间、情绪、乐器、风格、BPM），你手动点选每列里的一个元素，像拼积木一样拼出一首歌的「配方」。适合你心里已经有画面、想精确控制每个维度的时候。' },
+        { t: 'Shuffle 摇号', d: '老虎机模式。先把你已经确定的列「锁住」（点列头的锁图标），然后点 Shuffle，没锁住的列会像老虎机一样随机滚动。适合只确定了一部分、剩下的想碰碰运气找灵感。' },
+        { t: 'Decompose 拆解', d: '逆向工程模式。系统会导入一首参考曲，把它拆成矩阵上的各个维度。你可以逐项修改——比如只换乐器、只换情绪——做出属于自己的 remix 版本。适合想基于现有好歌做变体。' },
+        { t: 'Album 专辑', d: '批量生产模式。你先在矩阵上锁定一个「声音身份」（比如固定钢琴 + 雨天 + 温暖），然后选一条「行进轴」（比如时间从黎明到深夜），系统会沿着这条轴一次生成整张连贯专辑（5–20 首）。适合要做系列内容。' },
       ],
-      modesH: '四种玩法',
+      modesH: '怎么用',
       modes: [
-        { t: 'Pick 点选', d: '手动每列选一个，最可控。' },
-        { t: 'Shuffle 摇号', d: '锁住满意的列，其余随机摇，找灵感。' },
-        { t: 'Decompose 拆解', d: '从导入的参考曲出发，逐项改，做 remix。' },
-        { t: 'Album 专辑', d: '锁住声音身份，选一条「行进轴」，一次出整张连贯专辑。' },
+        { t: '① 选标签页', d: '顶部四个按钮 Pick / Shuffle / Decompose / Album，点一个进入对应模式。' },
+        { t: '② 拼配方', d: '在矩阵盘上操作：Pick 模式点选、Shuffle 模式锁+摇、Decompose 模式改参考曲、Album 模式定身份+选轴。' },
+        { t: '③ 点生成', d: '点 Generate（单曲）或 Generate Album（专辑），AI 会实时写出歌名 + Suno Prompt + 封面 Prompt + 视频 Prompt。' },
+        { t: '④ 复制 → 出歌', d: '点卡片上的复制按钮，把 Prompt 粘进 Suno 生成音频、粘进 Veo 生成画面。复制内容已分段标好，照着填即可。' },
       ],
       sunoH: '把 Prompt 贴进 Suno（最容易卡住的一步）',
       sunoNote: 'Suno 的 Custom 模式有三个框，别全塞一个。每首的「Suno」复制按钮已经帮你分好段：',
@@ -818,21 +850,22 @@
       kicker: 'HOW IT WORKS',
       title: 'Turn one mainstream lo-fi track into a factory',
       lead: 'This is a matrix generator: break lo-fi into combinable elements, recombine them into new tracks and whole albums, and get ready-to-use Suno / Veo prompts.',
-      stepsH: 'Three steps',
+      stepsH: 'The four tabs',
       steps: [
-        { t: 'Set the identity', d: 'Pick one element per column on the matrix — Environment · Nature · Time · Mood · Instrument · Style · BPM — to set the sonic base for the track (or album).' },
-        { t: 'Generate', d: 'Hit Generate; the AI writes the title + Suno prompt + Veo video prompt live. Album mode lays out a whole coherent album at once.' },
-        { t: 'Copy → make the song', d: "Use the copy buttons on each card: paste prompts into Suno for audio, into Veo for visuals. The copied text is pre-segmented, so just fill it in." },
+        { t: 'Pick', d: 'The basic mode. Each column on the matrix board has a set of options (Environment, Nature, Time, Mood, Instrument, Style, BPM). You manually click one element per column to assemble a song “recipe” — like building blocks. Best when you already have a clear picture and want precise control.' },
+        { t: 'Shuffle', d: 'Slot-machine mode. Lock the columns you\'re happy with (click the lock icon on the column header), then hit Shuffle — the unlocked columns spin randomly. Great when you\'ve decided on some dimensions but want serendipity for the rest.' },
+        { t: 'Decompose', d: 'Reverse-engineering mode. The system imports a reference track and breaks it down into each matrix dimension. You can tweak them one by one — swap just the instrument, just the mood — to create your own remix. Best for making variations of an existing good track.' },
+        { t: 'Album', d: 'Batch mode. Lock a “sonic identity” on the matrix (e.g. piano + rain + warm), then pick a “traversal axis” (e.g. time of day from dawn to late night). The system generates a whole coherent album (5–20 tracks) along that axis in one go. Best for series content.' },
       ],
-      modesH: 'Four modes',
+      modesH: 'How to use',
       modes: [
-        { t: 'Pick', d: 'Manually choose one per column — most control.' },
-        { t: 'Shuffle', d: 'Lock the columns you like, slot-machine the rest for ideas.' },
-        { t: 'Decompose', d: 'Start from the imported reference and remix it dimension by dimension.' },
-        { t: 'Album', d: 'Lock the sonic identity, pick a traversal axis, get a whole coherent album.' },
+        { t: '① Pick a tab', d: 'The top bar has four buttons — Pick / Shuffle / Decompose / Album. Click one to enter that mode.' },
+        { t: '② Build the recipe', d: 'Work the matrix board: in Pick mode click to select; in Shuffle mode lock + spin; in Decompose mode tweak the reference; in Album mode set the identity + choose an axis.' },
+        { t: '③ Generate', d: 'Hit Generate (single track) or Generate Album. The AI writes the title + Suno prompt + cover prompt + video prompt in real time.' },
+        { t: '④ Copy → make the song', d: 'Use the copy buttons on each card: paste into Suno for audio, into Veo for visuals. The text is pre-segmented — just fill in the boxes.' },
       ],
       sunoH: 'Pasting prompts into Suno (the easy place to get stuck)',
-      sunoNote: "Suno's Custom mode has three fields — don't dump everything in one. Each track's “Suno” copy is already segmented:",
+      sunoNote: 'Suno\'s Custom mode has three fields — don\'t dump everything in one. Each track\'s “Suno” copy is already segmented:',
       sunoRows: [
         { box: 'Style of Music', put: 'Paste the [STYLE OF MUSIC] block — in an album this is the style anchor, identical on every track so the timbre stays consistent.' },
         { box: 'Title', put: 'Paste the [TITLE] block — the song name.' },
@@ -2257,6 +2290,21 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
       </header>
 
       <div className="mode-hint">{T({ pick: 'hintPick', shuffle: 'hintShuffle', decompose: 'hintDecompose', album: 'hintAlbum' }[mode])}</div>
+
+      {/* presets — quick start for beginners */}
+      {(mode === 'pick' || mode === 'shuffle' || mode === 'album') &&
+      <div className="presets">
+        <span className="presets-label">{T('presetsLabel')}</span>
+        {A.PRESETS.map((p) =>
+        <button key={p.key} type="button" className="preset-btn"
+          onClick={() => setSel({ ...p.sel })}
+          title={p.label}>
+          <span className="preset-icon">{p.icon}</span>
+          <span className="preset-name">{lang === 'zh' ? p.zh : p.label}</span>
+        </button>
+        )}
+      </div>
+      }
 
       {/* reference card in decompose mode */}
       {mode === 'decompose' &&

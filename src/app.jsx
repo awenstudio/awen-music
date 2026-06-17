@@ -258,6 +258,21 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
 
       <div className="mode-hint">{T({ pick: 'hintPick', shuffle: 'hintShuffle', decompose: 'hintDecompose', album: 'hintAlbum' }[mode])}</div>
 
+      {/* presets — quick start for beginners */}
+      {(mode === 'pick' || mode === 'shuffle' || mode === 'album') &&
+      <div className="presets">
+        <span className="presets-label">{T('presetsLabel')}</span>
+        {A.PRESETS.map((p) =>
+        <button key={p.key} type="button" className="preset-btn"
+          onClick={() => setSel({ ...p.sel })}
+          title={p.label}>
+          <span className="preset-icon">{p.icon}</span>
+          <span className="preset-name">{lang === 'zh' ? p.zh : p.label}</span>
+        </button>
+        )}
+      </div>
+      }
+
       {/* reference card in decompose mode */}
       {mode === 'decompose' &&
       <ReferenceCard sample={sampleRef} sel={sel}
