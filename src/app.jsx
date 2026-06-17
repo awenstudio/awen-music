@@ -152,7 +152,12 @@ Keep everything calm, warm, instrumental and study-friendly. No vocals.`;
     setBusy(true);
 
     let ai = null;
-    if (t.useAI) {try {ai = await callAI(baseSel);} catch (e) {ai = null;}}
+    if (t.useAI) {
+      try {ai = await callAI(baseSel);} catch (e) {
+        window.alert(T('aiFailed') + '\n' + e.message);
+        ai = null;
+      }
+    }
     if (!ai) ai = A.fallbackPrompt(baseSel);
 
     setSongs((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, ai } : x));
@@ -205,7 +210,12 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
     setAlbums((prev) => [{ id, axisLabel: axis.label, status: 'Draft', generating: true }, ...prev]);
     setBusy(true);
     let data = null;
-    if (t.useAI) {try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {data = null;}}
+    if (t.useAI) {
+      try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
+        window.alert(T('aiFailed') + '\n' + e.message);
+        data = null;
+      }
+    }
     if (!data) data = A.fallbackAlbum(axisKey, sel, recipes);
     setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
     setBusy(false);

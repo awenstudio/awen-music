@@ -44,6 +44,7 @@
       brandRange: '品牌区间 55–70',
       tempo: '速度',
       presetsLabel: '快速开始',
+      aiFailed: 'AI 生成失败，已回退到模板引擎。错误信息：',
     },
     en: {
       help: 'How it works',
@@ -87,6 +88,7 @@
       brandRange: 'brand range 55–70',
       tempo: 'Tempo',
       presetsLabel: 'Quick start',
+      aiFailed: 'AI generation failed, fell back to template engine. Error:',
     },
   };
 
