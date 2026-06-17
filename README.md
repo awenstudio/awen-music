@@ -65,3 +65,34 @@ Opening the HTML via `file://` will not load the `.jsx` modules — use a local 
 - **Bilingual** — 中 / EN toggle in the top bar; all copy lives in `i18n.js`.
 
 See **HANDOFF.md** for the exact production checklist.
+
+---
+
+## Project status & roadmap
+
+**Status:** early-stage but working — the app runs today from the source in `src/`
+and the self-contained build in `docs/`. Actively maintained.
+
+**v1.0 — current**
+- 7-dimension matrix → Suno / cover / video prompts
+- Pick · Shuffle · Decompose · Album modes
+- Offline deterministic prompt engine, bilingual UI (中 / EN), local persistence
+
+**v2.0 — planned**
+- Live AI generation backend (see `example-backend/`) so each prompt is model-written
+- Automated tests for the prompt/album engine + CI
+- More platforms (beyond Suno) and an expandable matrix-data format
+- Shareable presets / exportable recipe links
+
+Open issues track the roadmap — see [Issues](https://github.com/awenstudio/awen-music/issues).
+
+---
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). For anything
+larger than a small fix, please open an issue first.
+
+## License
+
+[MIT](LICENSE) © Awen Studio. Free to use, modify, and distribute.
