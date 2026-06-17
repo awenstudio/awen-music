@@ -1,11 +1,19 @@
-// Awen Music — Cloudflare Worker: AI proxy
-// Deploy: paste into Cloudflare Dashboard → Workers → Create Worker
-// Env vars: ANTHROPIC_API_KEY (set in Worker Settings → Variables)
+// Awen Music — Cloudflare Worker: 万能 AI 代理
+//
+// 环境变量（在 Cloudflare Worker → Settings → Variables 里设置）：
+//   PROVIDER      : "anthropic" 或 "openai"（默认 openai，兼容 DeepSeek/MiMo/通义等）
+//   UPSTREAM_URL  : API 地址
+//                   - DeepSeek : https://api.deepseek.com/v1/chat/completions
+//                   - MiMo     : https://api.mimo.ai/v1/chat/completions  (按实际填)
+//                   - 通义     : https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+//                   - Anthropic: https://api.anthropic.com/v1/messages
+//   UPSTREAM_KEY  : 对应平台的 API Key
+//   MODEL         : 模型名，例如 deepseek-chat / MiMo-7B-RL / qwen-turbo / claude-haiku-4-5-20251001
 
 const ALLOWED_ORIGINS = [
   'https://hiawen.com',
   'https://awenstudio.github.io',
-  'http://localhost:8771',  // local dev
+  'http://localhost:8771',
   'http://localhost:8770',
 ];
 
@@ -22,11 +30,9 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
 
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
-
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
@@ -49,19 +55,47 @@ export default {
       });
     }
 
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': env.ANTHROPIC_API_KEY,
+    const provider = (env.PROVIDER || 'openai').toLowerCase();
+    const url     = env.UPSTREAM_URL;
+    const key     = env.UPSTREAM_KEY;
+    const model   = env.MODEL;
+
+    if (!url || !key || !model) {
+      return new Response(JSON.stringify({ error: 'Worker env vars not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+      });
+    }
+
+    // 根据 provider 构造不同格式的请求体和请求头
+    let headers, body;
+
+    if (provider === 'anthropic') {
+      // Anthropic 自有格式
+      headers = {
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',  // 最快最省钱，够用
+      };
+      body = JSON.stringify({
+        model,
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+      });
+    } else {
+      // OpenAI 兼容格式（DeepSeek / MiMo / 通义 / Kimi 等）
+      headers = {
+        'Authorization': `Bearer ${key}`,
+        'content-type': 'application/json',
+      };
+      body = JSON.stringify({
+        model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      });
+    }
+
+    const r = await fetch(url, { method: 'POST', headers, body });
 
     if (!r.ok) {
       const err = await r.text();
@@ -72,7 +106,11 @@ export default {
     }
 
     const data = await r.json();
-    const text = data?.content?.[0]?.text ?? '';
+
+    // 统一提取 text：Anthropic 和 OpenAI 的响应结构不同
+    const text = provider === 'anthropic'
+      ? (data?.content?.[0]?.text ?? '')
+      : (data?.choices?.[0]?.message?.content ?? '');
 
     return new Response(JSON.stringify({ text }), {
       status: 200,
