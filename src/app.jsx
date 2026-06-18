@@ -12,10 +12,10 @@ const STORE_KEY = 'awen_matrix_state_v1';
 const GUIDE_KEY = 'awen_guide_seen_v1';
 
 const MODE_INFO = {
-  pick: { label: 'Pick', zh: '点选每列一个元素，拼出一首歌' },
-  shuffle: { label: 'Shuffle', zh: '锁定满意的维度，摇号生成其余（老虎机式）' },
-  decompose: { label: 'Decompose', zh: '从导入的参考曲拆解出发，逐项变异 remix' },
-  album: { label: 'Album', zh: '锁定声音身份，沿一条行进轴一次铺出整张专辑' }
+  pick: { label: 'Pick', zh: '点选每列一个元素，拼出一首歌', ja: 'ピック', ko: '픽', fr: 'Choisir', es: 'Elegir', de: 'Wählen', pt: 'Escolher' },
+  shuffle: { label: 'Shuffle', zh: '锁定满意的维度，摇号生成其余（老虎机式）', ja: 'シャッフル', ko: '셔플', fr: 'Mélanger', es: 'Mezclar', de: 'Mischen', pt: 'Embaralhar' },
+  decompose: { label: 'Decompose', zh: '从导入的参考曲拆解出发，逐项变异 remix', ja: '分解', ko: '분해', fr: 'Décomposer', es: 'Descomponer', de: 'Zerlegen', pt: 'Decompor' },
+  album: { label: 'Album', zh: '锁定声音身份，沿一条行进轴一次铺出整张专辑', ja: 'アルバム', ko: '앨범', fr: 'Album', es: 'Álbum', de: 'Album', pt: 'Álbum' }
 };
 
 function loadState() {
@@ -39,6 +39,7 @@ function App() {
   const [busy, setBusy] = React.useState(false);
   const [rolling, setRolling] = React.useState(false);
   const [showGuide, setShowGuide] = React.useState(false);
+  const [showLangs, setShowLangs] = React.useState(false);
   const [lang, setLang] = React.useState(saved?.lang || 'zh');
   window.I18N.lang = lang; // set before children render so T() resolves correctly
 
@@ -46,6 +47,14 @@ function App() {
   React.useEffect(() => {
     try {if (!localStorage.getItem(GUIDE_KEY)) {setShowGuide(true);localStorage.setItem(GUIDE_KEY, '1');}} catch (e) {}
   }, []);
+
+  // Close lang dropdown on outside click
+  React.useEffect(() => {
+    if (!showLangs) return;
+    const h = (e) => { if (!e.target.closest('.lang-toggle')) setShowLangs(false); };
+    document.addEventListener('click', h);
+    return () => document.removeEventListener('click', h);
+  }, [showLangs]);
 
   // persist
   React.useEffect(() => {
@@ -81,7 +90,7 @@ function App() {
   function getAccessToken() {
     let token = localStorage.getItem('awen_music_token');
     if (!token) {
-      token = window.prompt('请输入访问密码（只需输入一次）:');
+      token = window.prompt(T('enterPassword'));
       if (token) localStorage.setItem('awen_music_token', token.trim());
     }
     return token || '';
@@ -97,7 +106,7 @@ function App() {
     });
     if (r.status === 401) {
       localStorage.removeItem('awen_music_token');
-      throw new Error('密码错误，请重新输入');
+      throw new Error(T('wrongPassword'));
     }
     if (!r.ok) throw new Error('worker ' + r.status);
     const { text } = await r.json();
@@ -238,13 +247,13 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
           {Object.keys(MODE_INFO).map((m) =>
           <button key={m} type="button"
           className={'mode-btn' + (mode === m ? ' on' : '')}
-          onClick={() => switchMode(m)}>{MODE_INFO[m].label}</button>
+          onClick={() => switchMode(m)}>{window.I18N.labelFor(MODE_INFO[m])}</button>
           )}
         </div>
         <button type="button"
           className={'help-btn' + (t.useAI ? ' on' : '')}
           style={t.useAI ? {background:'rgba(127,212,201,0.15)',color:'var(--accent)'} : {}}
-          title={t.useAI ? 'AI 生成已开启' : 'AI 生成已关闭（使用模板引擎）'}
+          title={t.useAI ? T('aiOnTip') : T('aiOffTip')}}
           onClick={() => {
             if (!t.useAI) localStorage.removeItem('awen_music_token');
             setTweak('useAI', !t.useAI);
@@ -254,11 +263,21 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
         <button type="button" className="help-btn" onClick={() => setShowGuide(true)}>
           <span className="help-q">?</span> {T('help')}
         </button>
-        <div className="lang-toggle">
-          <button type="button" className={'lang-opt' + (lang === 'zh' ? ' on' : '')}
-          onClick={() => setLang('zh')}>中</button>
-          <button type="button" className={'lang-opt' + (lang === 'en' ? ' on' : '')}
-          onClick={() => setLang('en')}>EN</button>
+        <div className="lang-toggle" style={{position:'relative'}}>
+          <button type="button" className="lang-opt" style={{display:'flex',alignItems:'center',gap:4,padding:'6px 11px'}}
+            onClick={() => setShowLangs(!showLangs)}>
+            {window.I18N.LANGS.find(l=>l.code===lang)?.native || lang}
+            <span style={{fontSize:9,opacity:.6}}>▼</span>
+          </button>
+          {showLangs && <div className="lang-dropdown" style={{position:'absolute',top:'100%',right:0,marginTop:4,background:'var(--panel)',border:'1px solid var(--line)',borderRadius:10,padding:4,zIndex:100,minWidth:120,boxShadow:'var(--shadow)'}}>
+            {window.I18N.LANGS.map(l =>
+              <button key={l.code} type="button" className={'lang-opt' + (lang === l.code ? ' on' : '')}
+                style={{display:'block',width:'100%',textAlign:'left',padding:'6px 12px',borderRadius:6,fontSize:13}}
+                onClick={() => { setLang(l.code); setShowLangs(false); }}>
+                {l.native} <span style={{opacity:.5,fontSize:11}}>{l.code.toUpperCase()}</span>
+              </button>
+            )}
+          </div>}
         </div>
         <div className="topstat">
           <span className="topstat-n">{mode === 'album' ? albums.filter((a) => !a.generating).length : songs.filter((s) => !s.generating).length}</span>
@@ -277,7 +296,7 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
           onClick={() => setSel({ ...p.sel })}
           title={p.label}>
           <span className="preset-icon">{p.icon}</span>
-          <span className="preset-name">{lang === 'zh' ? p.zh : p.label}</span>
+          <span className="preset-name">{window.I18N.labelFor(p)}</span>
         </button>
         )}
       </div>

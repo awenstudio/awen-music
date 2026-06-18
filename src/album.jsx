@@ -8,8 +8,7 @@ function AlbumConsole({ axisKey, count, base, busy, onAxis, onCount, onBuild }) 
   const moving = new Set(axis.moves);
   const capped = axis.maxTracks && count > axis.maxTracks;
   const effective = capped ? axis.maxTracks : count;
-  const zh = window.I18N.isZh();
-  const dimLabel = (k) => k === 'bpm' ? 'BPM' : (zh ? (A.DIMS.find(d => d.key === k)?.zh) : (A.DIMS.find(d => d.key === k)?.label)) || k;
+  const dimLabel = (k) => k === 'bpm' ? 'BPM' : (window.I18N.labelFor(A.DIMS.find(dd => dd.key === k) || {label: k}));
   const movingLabels = axis.moves.map(dimLabel);
   const anchorLabels = A.anchorDims(axisKey).map(dimLabel);
 
@@ -23,7 +22,7 @@ function AlbumConsole({ axisKey, count, base, busy, onAxis, onCount, onBuild }) 
               className={'axis-btn' + (a.key === axisKey ? ' on' : '')}
               onClick={() => onAxis(a.key)}>
               <span className="axis-name">{a.label}</span>
-              <span className="axis-zh">{zh ? a.zh : a.en}</span>
+              <span className="axis-zh">{window.I18N.labelFor({...a, label: a.en})}</span>
             </button>
           ))}
         </div>
@@ -65,7 +64,6 @@ function AlbumCard({ album, onStatus, onDelete }) {
   const A = window.AWEN;
   const data = album.data;
   const status = album.status || 'Draft';
-  const zh = window.I18N.isZh();
   const cycle = () => {
     const i = STATUS_ORDER.indexOf(status);
     onStatus(album.id, STATUS_ORDER[(i + 1) % STATUS_ORDER.length]);
@@ -122,15 +120,15 @@ ${tr.prompt}`;
           </div>
 
           {album.generating ? (
-            <><div className="album-title dim">{zh ? '正在生成专辑…' : 'composing album…'}</div><Skeleton /></>
+            <><div className="album-title dim">{window.I18N.isZh() ? '正在生成专辑…' : 'composing album…'}</div><Skeleton /></>
           ) : (
             <>
               <div className="album-title">{data.album}</div>
               <div className="album-concept">{data.concept}</div>
-              {(zh ? (data.descriptionZh || data.description) : data.description) && (
+              {(window.I18N.isZh() ? (data.descriptionZh || data.description) : data.description) && (
                 <div className="album-desc">
                   <span className="album-desc-tag">{T('about')}</span>
-                  <p className="album-desc-body">{zh ? (data.descriptionZh || data.description) : data.description}</p>
+                  <p className="album-desc-body">{window.I18N.isZh() ? (data.descriptionZh || data.description) : data.description}</p>
                 </div>
               )}
               <div className="block anchor-block">
