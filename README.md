@@ -1,98 +1,179 @@
 # Awen Music — Matrix Generator
 
-A bilingual (中文 / EN) web tool that turns a 7‑dimension "recipe" (Environment · Nature · Time · Mood · Instrument · Style · BPM) into ready‑to‑paste **Suno** music prompts, **cover‑art** prompts, and **background‑video** prompts — for a lo‑fi study‑music content factory. It also builds whole **coherent albums** by locking one sonic identity and traversing a single "axis" (a day arc, a place journey, a late‑night descent, etc.) across the tracklist.
+A web tool that turns a 7‑dimension "recipe" (Environment · Nature · Time · Mood · Instrument · Style · BPM) into ready‑to‑paste **Suno** music prompts, **cover‑art** prompts, and **background‑video** prompts — for a lo‑fi study‑music content factory. It also builds whole **coherent albums** by locking one sonic identity and traversing a single axis across the tracklist.
 
-Intended home: **hiawen.com**
+**Live site:** [hiawen.com/music](https://hiawen.com/music/)  
+**Repo:** [github.com/awenstudio/awen-music](https://github.com/awenstudio/awen-music)
 
 ---
 
 ## What's in this bundle
 
 ```
-design_handoff_awen_music/
+awen-music/
 ├── README.md                ← this file
-├── HANDOFF.md               ← developer / Claude Code instructions (READ THIS to ship)
-├── site/
-│   └── index.html           ← SELF-CONTAINED build. Upload as-is to any static host.
-└── src/                     ← editable source (the real project)
-    ├── Awen Study Matrix.html   entry HTML (loads everything below)
-    ├── data.js                  matrix data + offline prompt/album engine  → window.AWEN
-    ├── i18n.js                  all 中/EN strings + guide copy             → window.I18N, window.T
-    ├── components.jsx           icons, chips, columns, copy button, placeholder
-    ├── cards.jsx                recipe console + single‑song result card
-    ├── album.jsx                album axis console + album result card
-    ├── guide.jsx                first‑run usage guide overlay
-    ├── tweaks-panel.jsx         in‑app settings panel (theme / density / AI toggle)
-    └── app.jsx                  <App> root: state, AI calls, layout, persistence
+├── HANDOFF.md               ← developer / Claude Code instructions
+├── CONTRIBUTING.md
+├── LICENSE
+├── build.py                 ← bundles src/ → docs/index.html
+├── docs/
+│   └── index.html           ← SELF-CONTAINED build (live on hiawen.com/music)
+├── src/                     ← editable source
+│   ├── Awen Study Matrix.html   entry HTML
+│   ├── data.js                  matrix data + offline prompt/album engine → window.AWEN
+│   ├── i18n.js                  all UI strings (8 languages)              → window.I18N, window.T
+│   ├── components.jsx           icons, chips, columns, copy button
+│   ├── cards.jsx                recipe console + single-song result card
+│   ├── album.jsx                album axis console + album result card
+│   ├── guide.jsx                first-run usage guide overlay
+│   ├── tweaks-panel.jsx         in-app settings (theme / density / AI toggle)
+│   └── app.jsx                  <App> root: state, AI calls, layout, persistence
+├── example-backend/
+│   └── api/                 ← serverless function example for real AI generation
+└── workers/                 ← Cloudflare Workers variant
 ```
-
-> **Note on file naming:** the source files are *functional code*, not just visual mockups. The app actually works today. Shipping it is mostly about **hosting** it and **wiring real AI** — see HANDOFF.md.
 
 ---
 
-## Two ways to go live
+## Tech stack
 
-| Path | Effort | Result | Where |
-|---|---|---|---|
-| **A. Static, today** | upload one file | Fully working tool, prompts come from the built‑in **offline engine** (deterministic, template‑based). The "AI prompt generation" toggle has no effect because there's no server. | `site/index.html` → **GitHub Pages** (`awenstudio.github.io`) or Netlify/Vercel drag‑drop. Point **hiawen.com** at it. |
-| **B. Real AI** | add a tiny backend | Each generation is unique and model‑written (Suno / cover / video prompts). | Needs a host that runs serverless functions — **Vercel / Netlify / Cloudflare**, *not* GitHub Pages (it's static‑only). See HANDOFF.md §"Wiring real AI". |
-
-Recommended: ship **A** now so the site is live, then do **B** with Claude Code.
+- **React 18.3.1 + Babel** — transpiled in-browser, no build step, no npm
+- **State** — persisted to `localStorage` under `awen_matrix_state_v1`
+- **AI** — calls `window.claude.complete(prompt)`; gracefully falls back to the deterministic offline engine if unavailable
 
 ---
 
 ## Run it locally
 
-It's plain files, no install. From the `src/` folder:
+No install needed. From the `src/` folder:
 
 ```bash
-# any static server works; pick one
 python3 -m http.server 8000
-# then open http://localhost:8000/Awen%20Study%20Matrix.html
+# open http://localhost:8000/Awen%20Study%20Matrix.html
 ```
 
-Opening the HTML via `file://` will not load the `.jsx` modules — use a local server.
+> Opening via `file://` won't load `.jsx` modules — always use a local server.
 
 ---
 
-## How it works (1‑minute tour)
+## How it works
 
-- **Matrix board** — seven columns; pick one cell per column to form the current *recipe*.
-- **Modes** (top bar): **Pick** (hand‑pick), **Shuffle** (lock columns you like, slot‑machine the rest), **Decompose** (start from an imported reference and mutate), **Album** (lock identity, pick a traversal axis, generate a whole tracklist).
-- **Generate** → produces a card with a **Suno prompt** (Style box + Title + Description + Exclude), a **Cover prompt** (1:1 art), and a **Video prompt** (16:9 loop). Each block has a one‑click copy button tailored to where it pastes.
-- **Album mode** → one identity + one axis; track 01→N are pre‑ordered along the axis (top‑to‑bottom = intended play order). Outputs a shared **Style Anchor**, liner notes (中/EN), cover + video prompts, and a per‑track Suno line.
-- **Persistence** — everything is saved to `localStorage` (`awen_matrix_state_v1`); refresh keeps your work.
-- **Bilingual** — 中 / EN toggle in the top bar; all copy lives in `i18n.js`.
+### The 7-dimension matrix
 
-See **HANDOFF.md** for the exact production checklist.
+| Dimension | Options (10 each unless noted) |
+|---|---|
+| **Environment** | Library, Rainy Window, Cozy Desk, Cafe, Bookshop, Study Room, Greenhouse, Attic Studio, Japanese Apartment, Old Train |
+| **Nature** | Rain, Light Snow, Birdsong, Distant Thunder, Wind, Fireplace, River, Cicadas, Ocean Waves, Silence |
+| **Time** | Dawn, Early Morning, Morning, Noon, Afternoon, Dusk, Evening, Night, 3 AM (9 options) |
+| **Mood** | Calm, Cozy, Warm, Nostalgic, Focused, Melancholy, Hopeful, Dreamy, Introspective |
+| **Instrument** | Felt Piano, Grand Piano, Strings, Guitar, Rhodes, Marimba, Harp, Vibraphone, Organ, Synth Pad |
+| **Style** | Ambient, Neo Classical, Lo-fi Hip Hop, Chillhop, Jazzhop, Minimal Piano, Cinematic, Dream Pop (8 options) |
+| **BPM** | 55, 58, 60, 62, 65, 68, 70 |
+
+**Brand default:** Library · Rain · Night · Calm · Felt Piano · Ambient · 60 BPM
+
+### 4 operational modes
+
+| Mode | What it does |
+|---|---|
+| **Pick** | Hand-pick one cell per column to assemble a recipe |
+| **Shuffle** | Lock columns you want, randomize the rest (slot-machine style) |
+| **Decompose** | Start from the reference track, mutate individual dimensions to remix |
+| **Album** | Lock a sonic identity, choose an axis, generate a coherent tracklist (3–20 tracks) |
+
+### 8 quick-start presets
+
+Deep Focus · Morning Coffee · Rainy Day · Late Night Study · Cozy Afternoon · Creative Flow · Gentle Awakening · Midnight Session
+
+### Generated output (per track)
+
+Each generation produces three copy-ready blocks:
+
+1. **Suno prompt** — Style anchor + Title + Description + Exclusions  
+2. **Cover art prompt** — 1:1 square for image generation  
+3. **Video prompt** — 16:9 looping background
+
+**Texture logic:**
+- Beat-driven styles (Lo-fi Hip Hop, Chillhop, Jazzhop) → `soft brushed drums, gentle swing, warm tape saturation, vinyl crackle`
+- Ambient/piano styles → `no drums, warm tape saturation, soft room reverb, low-pass filter, airy, intimate`
+
+**Status badges:** Draft → Approved → Queued → Published (track workflow states)
 
 ---
 
-## Project status & roadmap
+## Album mode — 10 traversal axes
 
-**Status:** early-stage but working — the app runs today from the source in `src/`
-and the self-contained build in `docs/`. Actively maintained.
+| # | Axis | What moves |
+|---|---|---|
+| 1 | **Day Arc** | Time: dawn → midnight |
+| 2 | **Place Journey** | Environment across 10 locations |
+| 3 | **Seasons Turning** | Nature through seasonal sequence |
+| 4 | **Morning Rise** | Time + BPM + mood, energy builds toward focus |
+| 5 | **Focus Session** | BPM peaks mid-album, mood deepens |
+| 6 | **Late-Night Descent** | Evening → 3 AM, decelerating tempo, inward mood |
+| 7 | **Storm Passing** | Weather front building, then clearing |
+| 8 | **Mood Drift** | Emotional arc: bright → introspective |
+| 9 | **Comfort Arc** | Healing trajectory: lonely → calm → warm |
+| 10 | **Concept EP** | Minimal variation, auto-capped at 5 tracks |
 
-**v1.0 — current**
+Tracks 01→N are pre-ordered along the axis (top-to-bottom = intended play order). Output includes a shared Style Anchor, liner notes (bilingual), cover + video prompts, and a per-track Suno line.
+
+---
+
+## Customization
+
+### Themes (4)
+
+| Theme | Feel |
+|---|---|
+| `console` | Dark blue-teal (default) |
+| `lofi` | Warm tan/brown |
+| `clean` | Minimal light blue |
+| `studio` | Warm dark brown |
+
+### Density modes
+
+**Compact** / **Regular** — adjusts padding, chip height, and board height.
+
+### Language support (8)
+
+Simplified Chinese · English · Japanese · Korean · French · Spanish · German · Portuguese
+
+UI labels switch instantly. Matrix dimension names stay in English by design (production consistency for Suno prompts).
+
+---
+
+## Deployment options
+
+| Path | Effort | Notes |
+|---|---|---|
+| **Static (current)** | Already live | `docs/index.html` on GitHub Pages → hiawen.com/music. Offline engine. |
+| **Real AI** | Add backend | Serverless proxy on Vercel/Netlify/Cloudflare. See `example-backend/`. **Never ship an API key in the front end.** |
+
+---
+
+## Project status
+
+**Status:** v1.0 — live at [hiawen.com/music](https://hiawen.com/music/)
+
+**v1.0 (current, live)**
 - 7-dimension matrix → Suno / cover / video prompts
-- Pick · Shuffle · Decompose · Album modes
-- Offline deterministic prompt engine, bilingual UI (中 / EN), local persistence
+- Pick · Shuffle · Decompose · Album modes (10 axes)
+- 8 presets, 4 themes, density modes
+- 8-language UI, local persistence, offline deterministic engine
 
-**v2.0 — planned**
-- Live AI generation backend (see `example-backend/`) so each prompt is model-written
-- Automated tests for the prompt/album engine + CI
-- More platforms (beyond Suno) and an expandable matrix-data format
+**v2.0 (planned)**
+- Live AI generation backend (model-written prompts per generation)
+- Automated tests for prompt/album engine + CI
+- More platforms beyond Suno, expandable matrix-data format
 - Shareable presets / exportable recipe links
-
-Open issues track the roadmap — see [Issues](https://github.com/awenstudio/awen-music/issues).
 
 ---
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). For anything
-larger than a small fix, please open an issue first.
+See [CONTRIBUTING.md](CONTRIBUTING.md). For anything larger than a small fix, open an issue first.
 
 ## License
 
-[MIT](LICENSE) © Awen Studio. Free to use, modify, and distribute.
+[MIT](LICENSE) © Awen Studio
