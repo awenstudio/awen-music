@@ -3815,13 +3815,6 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
             );
           })}
         </div>
-        <button type="button"
-          className={'help-btn' + (t.useAI ? ' on' : '')}
-          style={t.useAI ? {background:'rgba(127,212,201,0.15)',color:'var(--accent)'} : {}}
-          title={t.useAI ? 'AI 生成已开启 — 每次生成都走 Claude，prompt 更丰富' : 'AI 生成已关闭 — 使用内置模板引擎，离线可用'}
-          onClick={() => setTweak('useAI', !t.useAI)}>
-          ✦ AI {t.useAI ? 'ON' : 'OFF'}
-        </button>
         <button type="button" className="help-btn" onClick={() => setShowGuide(true)}>
           <span className="help-q">?</span> {T('help')}
         </button>
@@ -3991,8 +3984,6 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
         options={['compact', 'regular']}
         onChange={(v) => setTweak('density', v)} />
         <TweakSection label="Engine" />
-        <TweakToggle label="AI prompt generation" value={t.useAI}
-        onChange={(v) => setTweak('useAI', v)} />
       </TweaksPanel>
       <Guide open={showGuide} onClose={() => setShowGuide(false)} />
     </div>);
