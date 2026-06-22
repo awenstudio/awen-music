@@ -12,15 +12,14 @@ jobs:
       - name: Checkout product-awen-music
         uses: actions/checkout@v4
 
-      - name: Checkout awen-site
-        uses: actions/checkout@v4
+      - name: Setup SSH deploy key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          repository: awenstudio/awen-site
-          token: ${{ secrets.AWEN_SITE_PAT }}
-          path: awen-site
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
 
-      - name: Copy and push
+      - name: Clone awen-site and sync
         run: |
+          git clone git@github.com:awenstudio/awen-site.git awen-site
           cp docs/index.html awen-site/music/index.html
           cd awen-site
           git config user.name "github-actions[bot]"
