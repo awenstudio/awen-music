@@ -109,7 +109,7 @@ export default {
     try {
       // 使用 AbortController 防止超时
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 25000); // 25 秒超时（给响应时间）
+      const timeout = setTimeout(() => controller.abort(), 55000); // 55 秒超时（专辑生成 10 首需要更长时间）
 
       const r = await fetch(url, {
         method: 'POST',
