@@ -4,8 +4,7 @@
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "console",
-  "density": "regular",
-  "useAI": true
+  "density": "regular"
 } /*EDITMODE-END*/;
 
 const STORE_KEY = 'awen_matrix_state_v1';
@@ -161,11 +160,9 @@ Keep everything calm, warm, instrumental and study-friendly. No vocals.`;
     setBusy(true);
 
     let ai = null;
-    if (t.useAI) {
-      try {ai = await callAI(baseSel);} catch (e) {
-        window.alert(T('aiFailed') + '\n' + e.message);
-        ai = null;
-      }
+    try {ai = await callAI(baseSel);} catch (e) {
+      window.alert(T('aiFailed') + '\n' + e.message);
+      ai = null;
     }
     if (!ai) ai = A.fallbackPrompt(baseSel);
 
@@ -219,11 +216,9 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
     setAlbums((prev) => [{ id, axisLabel: axis.label, status: 'Draft', generating: true }, ...prev]);
     setBusy(true);
     let data = null;
-    if (t.useAI) {
-      try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
-        window.alert(T('aiFailed') + '\n' + e.message);
-        data = null;
-      }
+    try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
+      window.alert(T('aiFailed') + '\n' + e.message);
+      data = null;
     }
     if (!data) data = A.fallbackAlbum(axisKey, sel, recipes);
     setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
@@ -250,16 +245,6 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
           onClick={() => switchMode(m)}>{window.I18N.labelFor(MODE_INFO[m])}</button>
           )}
         </div>
-        <button type="button"
-          className={'help-btn' + (t.useAI ? ' on' : '')}
-          style={t.useAI ? {background:'rgba(127,212,201,0.15)',color:'var(--accent)'} : {}}
-          title={t.useAI ? T('aiOnTip') : T('aiOffTip')}}
-          onClick={() => {
-            if (!t.useAI) localStorage.removeItem('awen_music_token');
-            setTweak('useAI', !t.useAI);
-          }}>
-          ✦ AI {t.useAI ? 'ON' : 'OFF'}
-        </button>
         <button type="button" className="help-btn" onClick={() => setShowGuide(true)}>
           <span className="help-q">?</span> {T('help')}
         </button>
@@ -383,9 +368,7 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
         <TweakRadio label="Density" value={t.density}
         options={['compact', 'regular']}
         onChange={(v) => setTweak('density', v)} />
-        <TweakSection label="Engine" />
-        <TweakToggle label="AI prompt generation" value={t.useAI}
-        onChange={(v) => setTweak('useAI', v)} />
+
       </TweaksPanel>
       <Guide open={showGuide} onClose={() => setShowGuide(false)} />
     </div>);
