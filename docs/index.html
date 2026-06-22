@@ -1613,8 +1613,8 @@
 })();
 
 </script>
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script type="text/babel">
 // @ds-adherence-ignore -- omelette starter scaffold (raw elements/hex/px by design)
@@ -3019,8 +3019,7 @@ Object.assign(window, { Guide });
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "console",
-  "density": "regular",
-  "useAI": true
+  "density": "regular"
 } /*EDITMODE-END*/;
 
 const STORE_KEY = 'awen_matrix_state_v1';
@@ -3546,7 +3545,7 @@ function ToastContainer({ toasts, onClose, onAction }) {
 
   // AI proxy — points to Cloudflare Worker; update WORKER_URL after deploy
   const WORKER_URL = 'https://awen-music-api.ywhang1995.workers.dev';
-  const API_TIMEOUT_MS = 30000;
+  const API_TIMEOUT_MS = 90000; // album generation can take 40-60s for 10 tracks
 
   // Safe localStorage wrappers — Safari private mode / quota errors will not crash the app.
   const safeLS = {
@@ -3673,17 +3672,15 @@ No vocals, no variation. The cover / video / thumbnail MUST share the same visua
     setBusy(true);
 
     let ai = null;
-    if (t.useAI) {
-      try {
-        ai = await callAI(baseSel);
-      } catch (e) {
-        pushToast(T('aiFailed') + ' — ' + e.message, {
-          kind: 'error',
-          actionLabel: T('aiRetry'),
-          action: () => generate()
-        });
-        ai = null;
-      }
+    try {
+      ai = await callAI(baseSel);
+    } catch (e) {
+      pushToast(T('aiFailed') + ' — ' + e.message, {
+        kind: 'error',
+        actionLabel: T('aiRetry'),
+        action: () => generate()
+      });
+      ai = null;
     }
     if (!ai) ai = A.fallbackPrompt(baseSel);
 
@@ -3696,66 +3693,121 @@ No vocals, no variation. The cover / video / thumbnail MUST share the same visua
   function removeSong(id) {setSongs((prev) => prev.filter((s) => s.pinned || s.id !== id));}
 
   // ---- album generation: one AI call returns the whole coherent album ----
-  async function callAlbumAI(axis, base, recipes) {
-    const lines = recipes.map((s, i) => {
-      const role = A.trackRole(i, recipes.length);
-      return `${i + 1}. env=${s.environment}; nature=${s.nature}; time=${s.time}; mood=${s.mood}; inst=${s.instrument}; style=${s.style}; bpm=${s.bpm}; role=${role.name} (${role.mod})`;
-    }).join('\n');
-    const prompt =
-    `You are the album engine for "Awen Study", a lo-fi study-music label by awen yang.
-Design ONE coherent instrumental album. All tracks share a fixed sonic identity; only the "${axis.label}" axis progresses across them (${axis.moves.join(' + ')}).
+  // ── Batch-parallel album generation ────────────────────────────────────────
+  // Step 1 (serial)  : album metadata + first batch of tracks  (~15s)
+  // Step 2 (parallel): remaining two batches sent simultaneously (~10s)
+  // Total ≈ 25s vs. the old single-request approach that took 60s+.
 
-FIXED VISUAL IDENTITY (held constant — every cover/video/thumbnail must inherit this so the album reads as one Awen world):
-- Character: ${base.character}
-- Light Source: ${base.light}
-- Color Palette: ${base.palette}
-- Narrative Motif: ${base.motif}
+  function _trackLine(s, absIdx, total) {
+    const role = A.trackRole(absIdx, total);
+    return `${absIdx + 1}. env=${s.environment}; nature=${s.nature}; time=${s.time}; mood=${s.mood}; inst=${s.instrument}; style=${s.style}; bpm=${s.bpm}; role=${role.name} (${role.mod})`;
+  }
 
-ALBUM DNA (these four elements must be woven into every track description and the album liner note):
-- Core Motif: ${A.albumDNA(base).motif}
-- Core Texture: ${A.albumDNA(base).texture}
-- Core Space: ${A.albumDNA(base).space}
-- Core Emotion: ${A.albumDNA(base).emotion}
+  function _parseTrack(t, absIdx, recipes) {
+    const r = recipes[absIdx] || {};
+    return {
+      title:     String(t.title    || `Track ${absIdx + 1}`),
+      scene:     String(t.scene    || `${r.time} · ${r.environment}`),
+      role:      String(t.role     || ''),
+      key:       String(t.key      || A.musicalKey(r.mood || 'Calm')),
+      style:     String(t.style    || ''),
+      structure: String(t.structure || A.buildArrangement(r, t.role || '')),
+      motifMark: t.motifMark === 'null' ? null : (t.motifMark || null),
+      prompt:    String(t.prompt   || ''),
+    };
+  }
 
-CORE MELODIC MOTIF (recurs across the album for cohesion):
-- ${A.coreMotif(base.instrument)}
-- Track 1: introduce it clearly in the opening bars
-- Track ${Math.floor(recipes.length/2)+1}: subtle variation (different register or harmony)
-- Track ${recipes.length}: return it resolved, near-silent dynamics
+  // Prompt for Step 1: full album identity + first batch tracks
+  function _metaBatchPrompt(axis, base, batch, batchSize, total) {
+    const lines = batch.map((s, i) => _trackLine(s, i, total)).join('\n');
+    const dna = A.albumDNA(base);
+    return `You are the album engine for "Awen Study", a lo-fi study-music label by awen yang.
+Design ONE coherent instrumental album. All ${total} tracks share a fixed sonic identity; only the "${axis.label}" axis progresses (${axis.moves.join(' + ')}).
+THIS IS BATCH 1 OF 3. Return album metadata + tracks 1–${batchSize} only.
 
-TRACKS (one recipe per line):
+VISUAL IDENTITY:
+- Character: ${base.character}  - Light: ${base.light}  - Palette: ${base.palette}  - Motif: ${base.motif}
+
+ALBUM DNA (weave into every track):
+motif=${dna.motif}; texture=${dna.texture}; space=${dna.space}; emotion=${dna.emotion}
+
+MELODIC MOTIF: ${A.coreMotif(base.instrument)}
+Track 1: introduce clearly. Track ${Math.floor(total/2)+1}: subtle variation. Track ${total}: return resolved.
+
+TRACKS FOR THIS BATCH:
 ${lines}
 
-Return ONLY minified JSON, no markdown, EXACTLY:
-{"album":"evocative 2-4 word album title (Title Case)","concept":"one-line concept under 90 chars","description":"a 2-3 sentence liner note: the inspiration/source behind the album, the journey it traces, and what kind of tracks it gathers; reference the opening and closing track feel","description_zh":"the SAME liner note written naturally in fluent simplified Chinese (简体中文)","anchor":"a single shared Suno style string (under 150 chars) reused on every track; MUST include a production/texture layer (warm tape saturation, vinyl crackle, drum treatment or 'no drums', room reverb, low-pass) so timbre stays consistent","cover":"square 1:1 cover-art prompt built as Character + Environment + Motif + Light + Palette + camera + mood, weaving the Awen signature elements (open book, warm lamp, wood, cozy atmosphere); centered, negative space near the top for the album title; no text, no logos, no motion words","video":"16:9 looping background-video prompt: the motif in slow motion, same light + palette, dust drift, slow cinematic camera drift, shallow depth of field, seamless loop, no people","thumb":"YouTube thumbnail (1280×720) consistency rules: same palette, same lamp, same open book, Awen wordmark lower-left, same title type top-left","coreMotif":"the four-note motif phrase","dna":{"motif":"","texture":"","space":"","emotion":""},"tracks":[{"title":"evocative 2-4 word track title","scene":"2-4 word scene label","role":"track role name","key":"musical key + mode for THIS track","style":"groove+texture; key; BPM; lead+max 2 support; instrumental — MAX 150 chars","structure":"5-line metatag arrangement for THIS track's Lyrics box","motifMark":"intro|variation|return|null","prompt":"one-sentence reference note for this track"}]}
-The tracks array MUST have exactly ${recipes.length} items, in order. Everything calm, warm, instrumental, study-friendly, no vocals.`;
-    const raw = await complete(prompt);
-    const a = raw.indexOf('{'),b = raw.lastIndexOf('}');
-    if (a < 0 || b < 0) throw new Error('no json');
-    const j = JSON.parse(raw.slice(a, b + 1));
-    if (!j.album || !Array.isArray(j.tracks) || j.tracks.length !== recipes.length) throw new Error('bad shape');
+Return ONLY minified JSON, no markdown:
+{"album":"2-4 word Title Case","concept":"under 90 chars","description":"2-3 sentence liner note","description_zh":"same in 简体中文","anchor":"shared Suno style string under 150 chars — MUST include production texture (vinyl crackle, tape saturation, room reverb, low-pass)","cover":"1:1 cover-art prompt","video":"16:9 loop video prompt","thumb":"YouTube thumbnail rules","coreMotif":"four-note phrase","dna":{"motif":"","texture":"","space":"","emotion":""},"tracks":[{"title":"","scene":"2-4 words","role":"","key":"","style":"MAX 150 chars","structure":"5-line arrangement","motifMark":"intro|variation|return|null","prompt":""}]}
+tracks array MUST have exactly ${batchSize} items. Calm, warm, instrumental, no vocals.`;
+  }
+
+  // Prompt for Steps 2 & 3: track-only batches with album context injected
+  function _trackBatchPrompt(meta, batch, startIdx, total) {
+    const isLast = (startIdx + batch.length) === total;
+    const lines = batch.map((s, i) => _trackLine(s, startIdx + i, total)).join('\n');
+    return `You are the album engine for "Awen Study". Continue album "${meta.album}".
+ALBUM CONTEXT — keep 100% consistent:
+- Anchor style: ${meta.anchor}
+- Core motif: ${meta.coreMotif}
+- DNA: motif=${meta.dna.motif}; texture=${meta.dna.texture}; space=${meta.dna.space}; emotion=${meta.dna.emotion}
+${isLast ? `- Track ${total} MUST return the core motif resolved, near-silent dynamics.` : ''}
+
+TRACKS ${startIdx + 1}–${startIdx + batch.length} of ${total}:
+${lines}
+
+Return ONLY a minified JSON ARRAY (no wrapper), exactly ${batch.length} items:
+[{"title":"","scene":"2-4 words","role":"","key":"","style":"MAX 150 chars","structure":"5-line arrangement","motifMark":"intro|variation|return|null","prompt":""}]
+Calm, warm, instrumental, no vocals.`;
+  }
+
+  async function callAlbumAI(axis, base, recipes) {
+    const total  = recipes.length;
+    const b1Size = Math.ceil(total / 3);
+    const b2Size = Math.ceil((total - b1Size) / 2);
+    const batch1 = recipes.slice(0, b1Size);
+    const batch2 = recipes.slice(b1Size, b1Size + b2Size);
+    const batch3 = recipes.slice(b1Size + b2Size);
+
+    // ── Step 1: metadata + first batch (serial) ──────────────────────────────
+    const raw1 = await complete(_metaBatchPrompt(axis, base, batch1, b1Size, total));
+    const s1 = raw1.indexOf('{'), e1 = raw1.lastIndexOf('}');
+    if (s1 < 0 || e1 < 0) throw new Error('batch 1: no JSON');
+    const j1 = JSON.parse(raw1.slice(s1, e1 + 1));
+    if (!j1.album || !Array.isArray(j1.tracks)) throw new Error('batch 1: bad shape');
+
+    const meta = {
+      album: j1.album, axis: axis.label,
+      anchor: j1.anchor || '', coreMotif: j1.coreMotif || A.coreMotif(base.instrument),
+      dna: j1.dna || A.albumDNA(base),
+    };
+
+    // ── Step 2: remaining batches in parallel ─────────────────────────────────
+    const [raw2, raw3] = await Promise.all([
+      batch2.length ? complete(_trackBatchPrompt(meta, batch2, b1Size, total))           : Promise.resolve('[]'),
+      batch3.length ? complete(_trackBatchPrompt(meta, batch3, b1Size + b2Size, total)) : Promise.resolve('[]'),
+    ]);
+
+    const parseBatch = (raw) => {
+      const a = raw.indexOf('['), b = raw.lastIndexOf(']');
+      return (a >= 0 && b >= 0) ? JSON.parse(raw.slice(a, b + 1)) : [];
+    };
+
+    const allRaw = [...j1.tracks, ...parseBatch(raw2), ...parseBatch(raw3)];
+
     return {
-      album: String(j.album).slice(0, 60),
-      concept: String(j.concept || ''),
-      description: String(j.description || ''),
-      descriptionZh: String(j.description_zh || ''),
-      anchor: String(j.anchor || ''),
-      coreMotif: String(j.coreMotif || A.coreMotif(base.instrument)),
-      dna: j.dna || A.albumDNA(base),
-      visual: A.visualDNA(base),
-      cover: String(j.cover || ''),
-      video: String(j.video || ''),
-      thumb: String(j.thumb || A.thumbRules(base)),
-      tracks: j.tracks.map((t, i) => ({
-        title: String(t.title || `Track ${i + 1}`),
-        scene: String(t.scene || `${recipes[i]?.time} · ${recipes[i]?.environment}`),
-        role: String(t.role || ''),
-        key: String(t.key || A.musicalKey(recipes[i]?.mood || 'Calm')),
-        style: String(t.style || ''),
-        structure: String(t.structure || A.buildArrangement(recipes[i] || {}, t.role || '')),
-        motifMark: t.motifMark === 'null' ? null : (t.motifMark || null),
-        prompt: String(t.prompt || '')
-      }))
+      album:         String(j1.album).slice(0, 60),
+      concept:       String(j1.concept       || ''),
+      description:   String(j1.description   || ''),
+      descriptionZh: String(j1.description_zh || ''),
+      anchor:        String(j1.anchor        || ''),
+      coreMotif:     meta.coreMotif,
+      dna:           meta.dna,
+      visual:        A.visualDNA(base),
+      cover:         String(j1.cover  || ''),
+      video:         String(j1.video  || ''),
+      thumb:         String(j1.thumb  || A.thumbRules(base)),
+      tracks:        allRaw.map((t, i) => _parseTrack(t, i, recipes)),
     };
   }
 
@@ -3767,11 +3819,9 @@ The tracks array MUST have exactly ${recipes.length} items, in order. Everything
     setAlbums((prev) => [{ id, axisLabel: axis.label, base: { ...sel }, universeId: activeUniverseId, status: 'Draft', generating: true }, ...prev]);
     setBusy(true);
     let data = null;
-    if (t.useAI) {
-      try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
-        window.alert(T('aiFailed') + '\n' + e.message);
-        data = null;
-      }
+    try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
+      pushToast({ type: 'warn', msg: T('aiFailed') + ' — ' + e.message + '  (已切换模板引擎)', duration: 6000 });
+      data = null;
     }
     if (!data) data = A.fallbackAlbum(axisKey, sel, recipes);
     setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
