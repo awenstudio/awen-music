@@ -1,0 +1,34 @@
+name: Sync music page to awen-site
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/index.html]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout product-awen-music
+        uses: actions/checkout@v4
+
+      - name: Checkout awen-site
+        uses: actions/checkout@v4
+        with:
+          repository: awenstudio/awen-site
+          token: ${{ secrets.AWEN_SITE_PAT }}
+          path: awen-site
+
+      - name: Copy and push
+        run: |
+          cp docs/index.html awen-site/music/index.html
+          cd awen-site
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to sync"
+          else
+            git add music/index.html
+            git commit -m "sync: update music page from product-awen-music"
+            git push
+          fi
