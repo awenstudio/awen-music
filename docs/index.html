@@ -179,6 +179,8 @@
 
   /* ---- V2: identity layer grouping + visual columns ---- */
   .board-stack{ display:flex; flex-direction:column; gap:18px; margin-top:16px; }
+  /* V3 Scene mode hides the 11-dimension matrix — Scene/Mood/Purpose replaces it */
+  .app[data-mode="scene"] .board-stack{ display:none; }
   .board-group{ max-width:1240px; width:100%; margin:0 auto; }
   .board-group .board{ margin-top:8px; }
   .board-group-h{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
@@ -362,6 +364,31 @@
   .count-cap{ font-family:var(--font-mono); font-size:10px; color:var(--accent); }
   .albcon-go{ justify-content:center; margin-top:auto; }
 
+  /* ===================== V3 SCENE CONSOLE ===================== */
+  .sceneconsole{ max-width:1240px; margin:16px auto 0; display:flex; flex-direction:column; gap:16px; }
+  .scene-row{ display:flex; flex-direction:column; gap:8px; }
+  .scene-row-kicker{ font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; color:var(--ink-dim); text-transform:uppercase; }
+  .scene-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .scene-chip{ display:flex; align-items:center; gap:7px; padding:10px 14px; border-radius:11px;
+    border:1px solid var(--line); background:var(--panel); cursor:pointer; transition:all .15s;
+    color:var(--ink); font-size:13.5px; }
+  .scene-chip:hover{ border-color:var(--line2); transform:translateY(-1px); }
+  .scene-chip.on{ border-color:var(--accent); background:var(--accent-dim, rgba(127,212,201,0.16)); color:var(--ink); box-shadow:0 0 0 1px var(--accent) inset; }
+  .scene-chip:disabled{ opacity:.5; cursor:default; }
+  .scene-chip-emoji{ font-size:16px; }
+  .scene-chip-label{ font-weight:500; }
+  .scene-preview{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel);
+    padding:16px 18px; display:flex; flex-direction:column; gap:8px; }
+  .scene-preview-head{ display:flex; align-items:center; gap:10px; }
+  .scene-preview-title{ font-size:16px; font-weight:600; }
+  .scene-preview-bpm{ margin-left:auto; font-family:var(--font-mono); font-size:12px; color:var(--accent);
+    border:1px solid var(--line2); border-radius:6px; padding:2px 8px; }
+  .scene-preview-atmo{ font-size:13.5px; line-height:1.6; color:var(--ink-dim); font-style:italic; }
+  .scene-go-row{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .scene-go-row .count-row{ display:flex; align-items:center; gap:10px; }
+  .scene-time-est{ font-family:var(--font-mono); font-size:11px; color:var(--ink-dim); }
+  .scene-go-row .albcon-go{ flex:1; min-width:220px; margin-top:0; }
+
   /* ============================ ALBUM CARD ============================ */
   .albshelf{ display:flex; flex-direction:column; gap:18px; margin-top:16px; }
   .album{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
@@ -370,6 +397,9 @@
   .album-cover{ flex:0 0 132px; }
   .album-cover .ph{ width:132px; flex-basis:132px; }
   .album-meta{ flex:1; min-width:0; display:flex; flex-direction:column; gap:9px; }
+  .album-scene-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .album-scene-chip{ font-family:var(--font-mono); font-size:11px; color:var(--ink-dim);
+    border:1px solid var(--line2); border-radius:6px; padding:3px 9px; }
   .album-head{ display:flex; align-items:center; gap:10px; }
   .album-axis{ font-family:var(--font-mono); font-size:10px; color:var(--accent); white-space:nowrap;
                background:var(--accent-soft); padding:3px 9px; border-radius:6px; }
@@ -1347,9 +1377,15 @@
       `以一段在 ${base.environment} 里的 ${base.instrument} 为核心，${recipes.length} 首纯器乐沿着「${axis.label}」展开，` +
       `从「${tracks[0].title}」开始，在「${tracks[tracks.length - 1].title}」收束，` +
       `全程维持同样温暖的磁带质感与 ${base.bpm} 左右的脉动——为长时间不被打断的学习而作。`;
+    const concept = `${recipes.length} instrumental tracks · ${axis.label.toLowerCase()} · one ${base.instrument.toLowerCase()} identity held throughout`;
     return {
       album: albumTitle,
-      concept: `${recipes.length} instrumental tracks · ${axis.label.toLowerCase()} · one ${base.instrument.toLowerCase()} identity held throughout`,
+      concept,
+      theme: base._scene ? `${base._scene.label} — ${base._mood.label.toLowerCase()}, for ${base._purpose.label.toLowerCase()}` : concept,
+      story: description,
+      atmosphere: sceneAtmosphere(base) || `warm tape texture, ${base.bpm} bpm, a single ${base.instrument.toLowerCase()} identity`,
+      bpm: base.bpm,
+      sceneLabel: base._scene ? base._scene.label : '',
       description,
       descriptionZh,
       anchor,
@@ -1382,8 +1418,87 @@
       sel: { environment: 'Kyoto Study Room', nature: 'Rustling Leaves', time: 'Dawn', mood: 'Calm', instrument: 'Music Box', style: 'Ambient', bpm: 55 } },
   ];
 
+  /* ============================================================
+     AWEN MUSIC V3.0 — SCENE ENGINE
+     The V3 philosophy: users buy a SCENE + a FOCUS STATE, not
+     instruments or music theory. They pick Scene → Mood → Purpose,
+     and the engine maps that to a full internal recipe that drives
+     the (already V3) Suno-native album engine.
+     ============================================================ */
+
+  // 6 scenes. Each maps to valid matrix values + a written atmosphere.
+  const V3_SCENES = [
+    { key: 'rainy-library', emoji: '🌧️', label: 'Rainy Library', zh: '雨天图书馆',
+      atmosphere: 'rain against tall windows, hushed stacks, the distant turn of a page',
+      recipe: { environment: 'Library', nature: 'Rain', time: 'Night', instrument: 'Felt Piano', style: 'Lo-fi Hip Hop',
+                character: 'Librarian', light: 'Library Chandelier', palette: 'Library Sepia', motif: 'Turning Pages' } },
+    { key: 'tokyo-cafe', emoji: '☕', label: 'Tokyo Cafe', zh: '东京咖啡馆',
+      atmosphere: 'espresso machine hiss, low murmured chatter, warm afternoon light through glass',
+      recipe: { environment: 'Quiet Café', nature: 'Soft Wind', time: 'Afternoon', instrument: 'Rhodes', style: 'Jazzhop',
+                character: 'Coffee Drinker', light: 'Cafe Pendant Light', palette: 'Coffee Brown', motif: 'Coffee Steam' } },
+    { key: 'winter-cabin', emoji: '🔥', label: 'Winter Cabin', zh: '冬日小屋',
+      atmosphere: 'a crackling fire, snow piling on the windowsill, wool blankets and stillness',
+      recipe: { environment: 'Forest Cabin', nature: 'Fireplace', time: 'Evening', instrument: 'Acoustic Guitar', style: 'Neo Classical',
+                character: 'Traveler', light: 'Candle Light', palette: 'Winter Gray', motif: 'Burning Fireplace' } },
+    { key: 'night-coding', emoji: '💻', label: 'Night Coding Room', zh: '深夜编码室',
+      atmosphere: 'monitor glow in a dark room, city lights far below, the quiet hum of deep focus',
+      recipe: { environment: 'Night City', nature: 'None', time: 'Midnight', instrument: 'Warm Pad', style: 'Drone Ambient',
+                character: 'Researcher', light: 'Neon Reflection', palette: 'Night Indigo', motif: 'Flickering Lamp' } },
+    { key: 'quiet-bookstore', emoji: '📚', label: 'Quiet Bookstore', zh: '安静书店',
+      atmosphere: 'the scent of old paper, slow footsteps between shelves, dust drifting in golden light',
+      recipe: { environment: 'Kyoto Study Room', nature: 'Rustling Leaves', time: 'Golden Hour', instrument: 'Music Box', style: 'Minimal Piano',
+                character: 'Book Collector', light: 'Amber Lamp', palette: 'Autumn Gold', motif: 'Writing Letters' } },
+    { key: 'mountain-train', emoji: '🚆', label: 'Train Through Mountains', zh: '穿山列车',
+      atmosphere: 'the rhythmic clatter of rails, mountain peaks sliding past the window, dawn mist',
+      recipe: { environment: 'Mountain Lodge', nature: 'Soft Wind', time: 'Dawn', instrument: 'Vibraphone', style: 'Chillhop',
+                character: 'Traveler', light: 'Train Cabin Light', palette: 'Muted Green', motif: 'Train Journey' } },
+  ];
+
+  // 6 focus moods (PDF). Map to a matrix mood + bpm nudge + emotion word.
+  const V3_MOODS = [
+    { key: 'focused',     label: 'Focused',     zh: '专注',  mood: 'Focused',    bpmDelta: 3,  emotion: 'deep concentrated focus' },
+    { key: 'reflective',  label: 'Reflective',  zh: '沉思',  mood: 'Dreamy',     bpmDelta: 0,  emotion: 'quiet reflection' },
+    { key: 'calm',        label: 'Calm',        zh: '平静',  mood: 'Calm',       bpmDelta: -3, emotion: 'still and unhurried' },
+    { key: 'nostalgic',   label: 'Nostalgic',   zh: '怀旧',  mood: 'Nostalgic',  bpmDelta: 0,  emotion: 'warm nostalgia' },
+    { key: 'melancholic', label: 'Melancholic', zh: '忧郁',  mood: 'Bittersweet',bpmDelta: -3, emotion: 'tender melancholy' },
+    { key: 'hopeful',     label: 'Hopeful',     zh: '希望',  mood: 'Hopeful',    bpmDelta: 2,  emotion: 'gentle quiet hope' },
+  ];
+
+  // 6 purposes (PDF). Each sets a base BPM + a use-tag woven into the album.
+  const V3_PURPOSES = [
+    { key: 'study',      label: 'Study',      zh: '学习', bpm: 60, tag: 'deep study focus' },
+    { key: 'coding',     label: 'Coding',     zh: '编码', bpm: 65, tag: 'a long coding session' },
+    { key: 'reading',    label: 'Reading',    zh: '阅读', bpm: 58, tag: 'immersive reading' },
+    { key: 'writing',    label: 'Writing',    zh: '写作', bpm: 62, tag: 'flow-state writing' },
+    { key: 'sleep',      label: 'Sleep',      zh: '睡眠', bpm: 55, tag: 'drifting toward sleep' },
+    { key: 'relaxation', label: 'Relaxation', zh: '放松', bpm: 55, tag: 'unwinding and rest' },
+  ];
+
+  // Combine Scene + Mood + Purpose into a full internal recipe (sel shape)
+  // that the existing album engine already knows how to grow into an album.
+  function sceneToBase(sceneKey, moodKey, purposeKey) {
+    const scene   = V3_SCENES.find(s => s.key === sceneKey)     || V3_SCENES[0];
+    const mood    = V3_MOODS.find(m => m.key === moodKey)       || V3_MOODS[0];
+    const purpose = V3_PURPOSES.find(p => p.key === purposeKey) || V3_PURPOSES[0];
+    let bpm = purpose.bpm + mood.bpmDelta;
+    bpm = Math.max(55, Math.min(72, bpm)); // clamp to the brand range
+    return {
+      ...scene.recipe,
+      mood: mood.mood,
+      bpm,
+      _scene: scene, _mood: mood, _purpose: purpose, // V3 context for the album-story prompt
+    };
+  }
+
+  // Atmosphere / emotion sentence used in the Album DNA module + AI prompt.
+  function sceneAtmosphere(base) {
+    if (!base._scene) return '';
+    return `${base._scene.atmosphere}; ${base._mood.emotion}; made for ${base._purpose.tag}`;
+  }
+
   window.AWEN = {
     DIMS, BPM, DEFAULTS, REFERENCE, CONTENT_KEYS, PRESETS, VISUAL_KEYS,
+    V3_SCENES, V3_MOODS, V3_PURPOSES, sceneToBase, sceneAtmosphere,
     randomSelection, mutations, fallbackPrompt, rand,
     ALBUM_AXES, buildAlbum, anchorDims, fallbackAlbum,
     PALETTE_HEX, SIGNATURE, signatureElements,
@@ -1406,6 +1521,7 @@
       help: '使用指南',
       songsProduced: '首歌已产出',
       albumsBuilt: '张专辑已生成',
+      hintScene: '选一个场景 → 心情 → 用途，一键生成一张 4-6 分钟/首的 Suno 原生专辑（V3 推荐入口）。',
       hintPick: '点选每列一个元素，拼出一首歌。',
       hintShuffle: '锁定满意的维度，摇号生成其余（老虎机式）。',
       hintDecompose: '从导入的参考曲拆解出发，逐项变异 remix。',
@@ -1482,6 +1598,7 @@
       help: 'How it works',
       songsProduced: 'songs produced',
       albumsBuilt: 'albums built',
+      hintScene: 'Pick a Scene → Mood → Purpose and generate a Suno-native album (4-6 min per track). The V3 recommended entry point.',
       hintPick: 'Pick one element per column to compose a track.',
       hintShuffle: 'Lock the dimensions you like, slot-machine the rest.',
       hintDecompose: 'Start from the imported reference and mutate it track by track.',
@@ -2609,6 +2726,64 @@ Object.assign(window, { RecipeBar, Skeleton, SongCard, STATUS_ORDER, Tooltip });
 const { useState: useStateAlb } = React;
 
 /* ---------- the album-build console (replaces RecipeBar in album mode) ---------- */
+/* ---------- V3 Scene console: Scene → Mood → Purpose → Album ---------- */
+function SceneConsole({ sceneKey, moodKey, purposeKey, count, busy, onScene, onMood, onPurpose, onCount, onBuild }) {
+  const A = window.AWEN;
+  const zh = window.I18N.isZh();
+  const scene = A.V3_SCENES.find(s => s.key === sceneKey) || A.V3_SCENES[0];
+  const base = A.sceneToBase(sceneKey, moodKey, purposeKey);
+  const dnaHex = A.PALETTE_HEX[scene.recipe.palette] || ['#888'];
+
+  const Row = ({ kicker, items, sel, onPick }) => (
+    <div className="scene-row">
+      <div className="scene-row-kicker">{kicker}</div>
+      <div className="scene-chips">
+        {items.map(it => (
+          <button key={it.key} type="button"
+            className={'scene-chip' + (it.key === sel ? ' on' : '')}
+            onClick={() => onPick(it.key)} disabled={busy}>
+            {it.emoji && <span className="scene-chip-emoji">{it.emoji}</span>}
+            <span className="scene-chip-label">{zh ? it.zh : it.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="sceneconsole">
+      <Row kicker={zh ? '场景 · SCENE' : 'SCENE'} items={A.V3_SCENES} sel={sceneKey} onPick={onScene} />
+      <Row kicker={zh ? '心情 · MOOD' : 'MOOD'} items={A.V3_MOODS} sel={moodKey} onPick={onMood} />
+      <Row kicker={zh ? '用途 · PURPOSE' : 'PURPOSE'} items={A.V3_PURPOSES} sel={purposeKey} onPick={onPurpose} />
+
+      <div className="scene-preview">
+        <div className="scene-preview-head">
+          <span className="dna-swatch" style={{ background: `linear-gradient(135deg, ${dnaHex.join(', ')})` }} />
+          <span className="scene-preview-title">{scene.emoji} {zh ? scene.zh : scene.label}</span>
+          <span className="scene-preview-bpm">{base.bpm} BPM</span>
+        </div>
+        <div className="scene-preview-atmo">{A.sceneAtmosphere(base)}</div>
+      </div>
+
+      <div className="scene-go-row">
+        <div className="count-row">
+          <span className="count-label">{zh ? '曲目数' : 'Tracks'}</span>
+          <div className="count-stepper">
+            <button type="button" onClick={() => onCount(Math.max(3, count - 1))} disabled={busy}>−</button>
+            <span className="count-n">{count}</span>
+            <button type="button" onClick={() => onCount(Math.min(16, count + 1))} disabled={busy}>+</button>
+          </div>
+          <span className="scene-time-est">≈ {Math.round(count * 5)}–{Math.round(count * 6)} min</span>
+        </div>
+        <button type="button" className="btn btn-primary albcon-go" onClick={onBuild} disabled={busy}>
+          <Icon name="bolt" size={16} />
+          {busy ? (zh ? '生成中…' : 'Generating…') : (zh ? `生成 ${count} 首专辑` : `Generate ${count}-track Album`)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AlbumConsole({ axisKey, count, base, busy, onAxis, onCount, onBuild }) {
   const A = window.AWEN;
   const axis = A.ALBUM_AXES.find(a => a.key === axisKey) || A.ALBUM_AXES[0];
@@ -2774,6 +2949,18 @@ ${tr.title}`;
             <>
               <div className="album-title">{data.album}</div>
               <div className="album-concept">{data.concept}</div>
+              {(data.sceneLabel || data.bpm) && (
+                <div className="album-scene-row">
+                  {data.sceneLabel && <span className="album-scene-chip">🎬 {data.sceneLabel}</span>}
+                  {data.bpm && <span className="album-scene-chip">{data.bpm} BPM · {data.tracks ? data.tracks.length : 0} tracks · ≈ {Math.round((data.tracks?data.tracks.length:0)*5)}–{Math.round((data.tracks?data.tracks.length:0)*6)} min</span>}
+                </div>
+              )}
+              {data.atmosphere && (
+                <div className="dna-panel" style={{marginTop:6}}>
+                  <span className="dna-tag">{zh ? '氛围' : 'ATMOSPHERE'}</span>
+                  <span className="dna-vals" style={{fontStyle:'italic'}}>{data.atmosphere}</span>
+                </div>
+              )}
               {data.visual && (
                 <div className="dna-panel">
                   <span className="dna-tag">{T('visualDna')}</span>
@@ -3303,6 +3490,7 @@ function UniverseBuilder({ sel, universes, onSave, onApply, onDelete, activeUniv
 }
 
 const MODE_INFO = {
+  scene: { label: 'Scene', zh: '选场景 → 心情 → 用途，一键生成整张专辑（V3 推荐）' },
   pick: { label: 'Pick', zh: '点选每列一个元素，拼出一首歌' },
   shuffle: { label: 'Shuffle', zh: '锁定满意的维度，摇号生成其余（老虎机式）' },
   decompose: { label: 'Decompose', zh: '从导入的参考曲拆解出发，逐项变异 remix' },
@@ -3469,7 +3657,7 @@ function ToastContainer({ toasts, onClose, onAction }) {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
   const saved = React.useRef(loadState()).current;
-  const [mode, setMode] = React.useState(saved?.mode || 'pick');
+  const [mode, setMode] = React.useState(saved?.mode || 'scene');
   const [universes, setUniverses] = React.useState(() => A.loadUniverses());
   const [activeUniverseId, setActiveUniverseId] = React.useState(null);
   const [toasts, setToasts] = React.useState([]);
@@ -3497,6 +3685,10 @@ function ToastContainer({ toasts, onClose, onAction }) {
   const [albums, setAlbums] = React.useState(saved?.albums || []);
   const [axisKey, setAxisKey] = React.useState(saved?.axisKey || 'day');
   const [trackCount, setTrackCount] = React.useState(saved?.trackCount || 8);
+  // V3 Scene-mode selections
+  const [sceneKey, setSceneKey]     = React.useState(saved?.sceneKey   || 'rainy-library');
+  const [moodKey, setMoodKey]       = React.useState(saved?.moodKey    || 'focused');
+  const [purposeKey, setPurposeKey] = React.useState(saved?.purposeKey || 'study');
   const [albumSeq, setAlbumSeq] = React.useState(saved?.albumSeq || 1);
   const [seq, setSeq] = React.useState(saved?.seq || 1);
   const [busy, setBusy] = React.useState(false);
@@ -3524,10 +3716,10 @@ function ToastContainer({ toasts, onClose, onAction }) {
     _writeTimer.current = setTimeout(() => {
       const clean = songs.filter((s) => !s.generating);
       const cleanAlb = albums.filter((a) => !a.generating);
-      try { localStorage.setItem(STORE_KEY, JSON.stringify({ mode, sel, locks, songs: clean, albums: cleanAlb, seq, albumSeq, axisKey, trackCount, lang })); } catch (e) {}
+      try { localStorage.setItem(STORE_KEY, JSON.stringify({ mode, sel, locks, songs: clean, albums: cleanAlb, seq, albumSeq, axisKey, trackCount, sceneKey, moodKey, purposeKey, lang })); } catch (e) {}
     }, 400);
     return () => { if (_writeTimer.current) clearTimeout(_writeTimer.current); };
-  }, [mode, sel, locks, songs, albums, seq, albumSeq, axisKey, trackCount, lang]);
+  }, [mode, sel, locks, songs, albums, seq, albumSeq, axisKey, trackCount, sceneKey, moodKey, purposeKey, lang]);
 
   function pick(key, val) {setSel((prev) => ({ ...prev, [key]: val }));}
   function toggleLock(key) {setLocks((prev) => ({ ...prev, [key]: !prev[key] }));}
@@ -3767,11 +3959,19 @@ No vocals. Cover / video / thumbnail MUST share the same visual identity.`;
   function _metaBatchPrompt(axis, base, batch, batchSize, total) {
     const lines = batch.map((s, i) => _trackLine(s, i, total)).join('\n');
     const dna = A.albumDNA(base);
+    const atmo = A.sceneAtmosphere(base);
+    const sceneBlock = base._scene
+      ? `SCENE (this is the album's whole world — every track lives inside it):
+- Scene: ${base._scene.label}
+- Atmosphere: ${atmo}
+- Purpose: this album is made for ${base._purpose.tag} at roughly ${base.bpm} BPM
+`
+      : '';
     return `You are the album engine for "Awen Study", a lo-fi study-music label by awen yang.
-Design ONE coherent instrumental album. All ${total} tracks share a fixed sonic identity; only the "${axis.label}" axis progresses (${axis.moves.join(' + ')}).
+Design ONE coherent, Spotify-grade instrumental album of ${total} tracks (target 4-6 min each, 35-45 min total). All tracks share a fixed sonic identity; only the "${axis.label}" axis progresses (${axis.moves.join(' + ')}).
 THIS IS BATCH 1 OF 3. Return album metadata + tracks 1–${batchSize} only.
 
-VISUAL IDENTITY:
+${sceneBlock}VISUAL IDENTITY:
 - Character: ${base.character}  - Light: ${base.light}  - Palette: ${base.palette}  - Motif: ${base.motif}
 
 ALBUM DNA (weave into every track):
@@ -3790,7 +3990,7 @@ V3.0 TRACK RULES (every track):
 - Thread the SAME shared motif through all tracks. NEVER use the flat Intro/Verse/Outro trio.
 
 Return ONLY minified JSON, no markdown:
-{"album":"2-4 word Title Case","concept":"under 90 chars","description":"2-3 sentence liner note","description_zh":"same in 简体中文","anchor":"shared Suno style string — MUST include production texture (vinyl crackle, tape saturation, room reverb) AND end with the long-form words","cover":"1:1 cover-art prompt","video":"16:9 loop video prompt","thumb":"YouTube thumbnail rules","coreMotif":"four-note phrase","dna":{"motif":"","texture":"","space":"","emotion":""},"tracks":[{"title":"","scene":"2-4 words","role":"","key":"","style":"motif + long-form words","lyrics":"[Instrumental]\\n[Intro] ...\\n[Verse A] ...\\n[Verse B] ...\\n[Bridge] ...\\n[Verse C] ...\\n[Bridge] ...\\n[Verse D] ...\\n[Outro] ...\\n[End]","motifMark":"intro|variation|return|null","prompt":""}]}
+{"album":"2-4 word Title Case","concept":"under 90 chars","theme":"the album's one-line theme","story":"2-3 sentence album story arc","atmosphere":"one vivid sentence of the album's atmosphere","description":"2-3 sentence liner note","description_zh":"same in 简体中文","anchor":"shared Suno style string — MUST include production texture (vinyl crackle, tape saturation, room reverb) AND end with the long-form words","cover":"1:1 cover-art prompt","video":"16:9 loop video prompt","thumb":"YouTube thumbnail rules","coreMotif":"four-note phrase","dna":{"motif":"","texture":"","space":"","emotion":""},"tracks":[{"title":"","scene":"2-4 words","role":"","key":"","style":"motif + long-form words","lyrics":"[Instrumental]\\n[Intro] ...\\n[Verse A] ...\\n[Verse B] ...\\n[Bridge] ...\\n[Verse C] ...\\n[Bridge] ...\\n[Verse D] ...\\n[Outro] ...\\n[End]","motifMark":"intro|variation|return|null","prompt":""}]}
 tracks array MUST have exactly ${batchSize} items. Calm, warm, instrumental, no vocals.`;
   }
 
@@ -3852,6 +4052,11 @@ Calm, warm, instrumental, no vocals.`;
     return {
       album:         String(j1.album).slice(0, 60),
       concept:       String(j1.concept       || ''),
+      theme:         String(j1.theme         || j1.concept || ''),
+      story:         String(j1.story         || j1.description || ''),
+      atmosphere:    String(j1.atmosphere    || A.sceneAtmosphere(base)),
+      bpm:           base.bpm,
+      sceneLabel:    base._scene ? base._scene.label : '',
       description:   String(j1.description   || ''),
       descriptionZh: String(j1.description_zh || ''),
       anchor:        A.ensureLongform(String(j1.anchor || '')),
@@ -3881,6 +4086,28 @@ Calm, warm, instrumental, no vocals.`;
     setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
     setBusy(false);
   }
+
+  // V3 Scene → Album: map Scene/Mood/Purpose to a full recipe, then run the
+  // existing (V3) album engine. The "day" axis gives a natural dawn→night arc.
+  async function buildSceneAlbum() {
+    if (busy) return;
+    const base = A.sceneToBase(sceneKey, moodKey, purposeKey);
+    const { axis, recipes } = A.buildAlbum('day', base, trackCount);
+    const scene = A.V3_SCENES.find(s => s.key === sceneKey);
+    const id = 'ALB-' + String(albumSeq).padStart(3, '0');
+    setAlbumSeq((n) => n + 1);
+    setAlbums((prev) => [{ id, axisLabel: scene ? scene.label : axis.label, base: { ...base }, universeId: null, status: 'Draft', generating: true }, ...prev]);
+    setBusy(true);
+    let data = null;
+    try { data = await callAlbumAI(axis, base, recipes); } catch (e) {
+      pushToast(T('aiFailed') + ' — ' + e.message + '  (已切换模板引擎)', { kind: 'warn' });
+      data = null;
+    }
+    if (!data) data = A.fallbackAlbum('day', base, recipes);
+    setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
+    setBusy(false);
+  }
+
   function remixSong(recipeSel) {
     setSel(prev => ({ ...prev, ...recipeSel }));
     switchMode('pick');
@@ -3894,7 +4121,7 @@ Calm, warm, instrumental, no vocals.`;
   const sampleRef = A.REFERENCE;
 
   return (
-    <div className="app" data-theme={t.theme} data-density={t.density}>
+    <div className="app" data-theme={t.theme} data-density={t.density} data-mode={mode}>
       <TokenModal open={tokenModalOpen}
         onSubmit={(v) => { setTokenModalOpen(false); window.__awen_resolveToken(v); }}
         onCancel={() => { setTokenModalOpen(false); window.__awen_resolveToken(''); }} />
@@ -3929,12 +4156,12 @@ Calm, warm, instrumental, no vocals.`;
           onClick={() => setLang('en')}>EN</button>
         </div>
         <div className="topstat">
-          <span className="topstat-n">{mode === 'album' ? albums.filter((a) => !a.generating).length : songs.filter((s) => !s.generating).length}</span>
-          <span className="topstat-l">{mode === 'album' ? T('albumsBuilt') : T('songsProduced')}</span>
+          <span className="topstat-n">{(mode === 'album' || mode === 'scene') ? albums.filter((a) => !a.generating).length : songs.filter((s) => !s.generating).length}</span>
+          <span className="topstat-l">{(mode === 'album' || mode === 'scene') ? T('albumsBuilt') : T('songsProduced')}</span>
         </div>
       </header>
 
-      <div className="mode-hint">{T({ pick: 'hintPick', shuffle: 'hintShuffle', decompose: 'hintDecompose', album: 'hintAlbum' }[mode])}</div>
+      <div className="mode-hint">{T({ scene: 'hintScene', pick: 'hintPick', shuffle: 'hintShuffle', decompose: 'hintDecompose', album: 'hintAlbum' }[mode])}</div>
 
       <TabIntro mode={mode} />
 
@@ -4003,10 +4230,15 @@ Calm, warm, instrumental, no vocals.`;
             onSave={saveUniverse} onApply={applyUniverse} onDelete={deleteUniverse}
             activeUniverseId={activeUniverseId} albums={albums} inline />
         </section>
-      </div>}
+      </div>
 
-      {/* console — album mode swaps in the axis builder */}
-      {mode === 'album' ?
+      {/* console — scene mode shows Scene→Mood→Purpose; album mode the axis builder */}
+      {mode === 'scene' ?
+      <SceneConsole sceneKey={sceneKey} moodKey={moodKey} purposeKey={purposeKey}
+      count={trackCount} busy={busy}
+      onScene={setSceneKey} onMood={setMoodKey} onPurpose={setPurposeKey}
+      onCount={setTrackCount} onBuild={buildSceneAlbum} /> :
+      mode === 'album' ?
       <AlbumConsole axisKey={axisKey} count={trackCount} base={sel} busy={busy}
       onAxis={setAxisKey} onCount={setTrackCount} onBuild={buildAlbum} /> :
 
@@ -4034,7 +4266,7 @@ Calm, warm, instrumental, no vocals.`;
       })()}
 
       {/* production feed */}
-      {mode === 'album' ?
+      {(mode === 'album' || mode === 'scene') ?
       <div className="feed">
           <div className="feed-head">
             <span className="feed-title">{T('albumShelf')}</span>
