@@ -252,6 +252,7 @@
   .card-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .card-headL{ display:flex; align-items:center; gap:10px; min-width:0; }
   .card-id{ font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); letter-spacing:.05em; white-space:nowrap; }
+  .card-gentime{ font-family:var(--font-mono); font-size:10px; color:var(--accent); background:var(--accent-soft); border-radius:5px; padding:2px 6px; white-space:nowrap; }
   .card-lineage{ font-family:var(--font-mono); font-size:10px; color:var(--accent);
                  background:var(--accent-soft); padding:2px 7px; border-radius:6px; }
   .card-headR{ display:flex; align-items:center; gap:8px; }
@@ -2674,6 +2675,7 @@ function SongCard({ song, onStatus, onDelete, onPin, onRemix }) {
       <div className="card-head">
         <div className="card-headL">
           <span className="card-id">{song.id}</span>
+          {song.genTime && <span className="card-gentime">⏱ {song.genTime}s</span>}
           {song.lineage && <span className="card-lineage">{song.lineage}</span>}
         </div>
         <div className="card-headR">
@@ -3018,6 +3020,7 @@ ${tr.title}`;
         <div className="album-meta">
           <div className="album-head">
             <span className="card-id">{album.id}</span>
+            {album.genTime && <span className="card-gentime">⏱ {album.genTime}s</span>}
             <span className="album-axis">{album.axisLabel}</span>
             <div className="album-head-r">
               <Tooltip text="点击循环切换：草稿 → 已采用 → 排队中 → 已发布">
@@ -3844,8 +3847,8 @@ function ToastContainer({ toasts, onClose, onAction }) {
 
   // Direct MiMo API — calls xiaomimimo.com from the browser (CORS allowed).
   // API key is entered once via modal and stored in localStorage.
-  const MIMO_URL   = 'https://api.deepseek.com/v1/chat/completions';
-  const MIMO_MODEL = 'deepseek-chat';
+  const MIMO_URL   = 'https://token-plan-cn.xiaomimimo.com/v1/chat/completions';
+  const MIMO_MODEL = 'MiMo-7B-RL';
   const API_TIMEOUT_MS = 90000;
 
   // Safe localStorage wrappers — Safari private mode / quota errors will not crash the app.
@@ -3869,10 +3872,10 @@ function ToastContainer({ toasts, onClose, onAction }) {
   window.__awen_resolveToken = resolveToken;
 
   async function getApiKey() {
-    let key = safeLS.get('awen_api_key');
+    let key = safeLS.get('mimo_api_key');
     if (!key) {
       key = await requestTokenViaModal();
-      if (key) safeLS.set('awen_api_key', key.trim());
+      if (key) safeLS.set('mimo_api_key', key.trim());
     }
     return key || '';
   }
@@ -3897,21 +3900,21 @@ function ToastContainer({ toasts, onClose, onAction }) {
         signal: ctrl.signal,
       });
       if (r.status === 401) {
-        safeLS.del('awen_api_key');
+        safeLS.del('mimo_api_key');
         throw new Error(T('aiBadToken'));
       }
       if (r.status === 402) {
         throw new Error(window.I18N.isZh()
-          ? 'DeepSeek 余额不足，请到 platform.deepseek.com 充值后重试'
-          : 'DeepSeek balance is empty — top up at platform.deepseek.com and retry');
+          ? 'MiMo 余额不足，请到 xiaomimimo.com 充值后重试'
+          : 'MiMo balance is empty — top up at xiaomimimo.com and retry');
       }
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        throw new Error(`DeepSeek ${r.status}: ${err.slice(0, 100)}`);
+        throw new Error(`MiMo ${r.status}: ${err.slice(0, 100)}`);
       }
       const data = await r.json();
       const text = data?.choices?.[0]?.message?.content ?? '';
-      if (!text) throw new Error('DeepSeek returned empty response');
+      if (!text) throw new Error('MiMo returned empty response');
       return text;
     } catch (e) {
       if (e.name === 'AbortError') throw new Error(T('aiTimeout'));
@@ -4001,6 +4004,7 @@ No vocals. Cover / video / thumbnail MUST share the same visual identity.`;
     setBusy(true);
 
     let ai = null;
+    const _genStart = Date.now();
     try {
       ai = await callAI(baseSel);
     } catch (e) {
@@ -4011,9 +4015,10 @@ No vocals. Cover / video / thumbnail MUST share the same visual identity.`;
       });
       ai = null;
     }
+    const genTime = ai ? ((Date.now() - _genStart) / 1000).toFixed(1) : null;
     if (!ai) ai = A.fallbackPrompt(baseSel);
 
-    setSongs((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, ai } : x));
+    setSongs((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, ai, genTime } : x));
     setBusy(false);
   }
 
@@ -4170,12 +4175,14 @@ Calm, warm, instrumental, no vocals.`;
     setAlbums((prev) => [{ id, axisLabel: axis.label, base: { ...sel }, universeId: activeUniverseId, status: 'Draft', generating: true }, ...prev]);
     setBusy(true);
     let data = null;
+    const _albStart = Date.now();
     try {data = await callAlbumAI(axis, sel, recipes);} catch (e) {
       pushToast(T('aiFailed') + ' — ' + e.message + '  (已切换模板引擎)', { kind: 'warn' });
       data = null;
     }
+    const albGenTime = data ? ((Date.now() - _albStart) / 1000).toFixed(1) : null;
     if (!data) data = A.fallbackAlbum(axisKey, sel, recipes);
-    setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
+    setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data, genTime: albGenTime } : x));
     setBusy(false);
   }
 
@@ -4191,12 +4198,14 @@ Calm, warm, instrumental, no vocals.`;
     setAlbums((prev) => [{ id, axisLabel: scene ? scene.label : axis.label, base: { ...base }, universeId: null, status: 'Draft', generating: true }, ...prev]);
     setBusy(true);
     let data = null;
+    const _scnStart = Date.now();
     try { data = await callAlbumAI(axis, base, recipes); } catch (e) {
       pushToast(T('aiFailed') + ' — ' + e.message + '  (已切换模板引擎)', { kind: 'warn' });
       data = null;
     }
+    const scnGenTime = data ? ((Date.now() - _scnStart) / 1000).toFixed(1) : null;
     if (!data) data = A.fallbackAlbum('day', base, recipes);
-    setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data } : x));
+    setAlbums((prev) => prev.map((x) => x.id === id ? { ...x, generating: false, data, genTime: scnGenTime } : x));
     setBusy(false);
   }
 
