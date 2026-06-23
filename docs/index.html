@@ -2784,7 +2784,9 @@ function SongCard({ song, onStatus, onDelete, onPin, onRemix, onStar }) {
     <div className="card">
       <div className="card-head">
         <div className="card-headL">
-          <span className="card-id">{song.id}</span>
+          {song.releaseId
+            ? <span className="card-id" style={{color:'var(--accent)',fontWeight:700}}>{song.releaseId}</span>
+            : <span className="card-id" style={{opacity:.4}}>草稿</span>}
           {song.createdAt && <span className="card-id" style={{color:'var(--ink-faint)'}}>{song.createdAt}</span>}
           {song.genTime && <span className="card-gentime">⏱ {song.genTime}s</span>}
           {song.lineage && <span className="card-lineage">{song.lineage}</span>}
@@ -3135,7 +3137,9 @@ ${tr.title}`;
         <div className="album-cover"><Placeholder label="cover" ratio="1 / 1" /></div>
         <div className="album-meta">
           <div className="album-head">
-            <span className="card-id">{album.id}</span>
+            {album.releaseId
+              ? <span className="card-id" style={{color:'var(--accent)',fontWeight:700}}>{album.releaseId}</span>
+              : <span className="card-id" style={{opacity:.4}}>草稿</span>}
             {album.createdAt && <span className="card-id" style={{color:'var(--ink-faint)'}}>{album.createdAt}</span>}
             {album.genTime && <span className="card-gentime">⏱ {album.genTime}s</span>}
             <span className="album-axis">{album.axisLabel}</span>
@@ -3900,6 +3904,8 @@ function App() {
   const [purposeKey, setPurposeKey] = React.useState(saved?.purposeKey || 'study');
   const [albumSeq, setAlbumSeq] = React.useState(saved?.albumSeq || 1);
   const [seq, setSeq] = React.useState(saved?.seq || 1);
+  const [songPubSeq, setSongPubSeq] = React.useState(saved?.songPubSeq || 1);
+  const [albumPubSeq, setAlbumPubSeq] = React.useState(saved?.albumPubSeq || 1);
   const [busy, setBusy] = React.useState(false);
   const [rolling, setRolling] = React.useState(false);
   const [showGuide, setShowGuide] = React.useState(false);
@@ -3925,7 +3931,7 @@ function App() {
     _writeTimer.current = setTimeout(() => {
       const clean = songs.filter((s) => !s.generating);
       const cleanAlb = albums.filter((a) => !a.generating);
-      try { localStorage.setItem(STORE_KEY, JSON.stringify({ mode, sel, locks, songs: clean, albums: cleanAlb, seq, albumSeq, axisKey, trackCount, sceneKey, moodKey, purposeKey, lang })); } catch (e) {}
+      try { localStorage.setItem(STORE_KEY, JSON.stringify({ mode, sel, locks, songs: clean, albums: cleanAlb, seq, albumSeq, songPubSeq, albumPubSeq, axisKey, trackCount, sceneKey, moodKey, purposeKey, lang })); } catch (e) {}
     }, 400);
     return () => { if (_writeTimer.current) clearTimeout(_writeTimer.current); };
   }, [mode, sel, locks, songs, albums, seq, albumSeq, axisKey, trackCount, sceneKey, moodKey, purposeKey, lang]);
@@ -4221,7 +4227,17 @@ No vocals. Cover / video / thumbnail MUST share the same visual identity.`;
     setBusy(false);
   }
 
-  function setStatus(id, status) {setSongs((prev) => prev.map((s) => s.id === id ? { ...s, status } : s));}
+  function setStatus(id, status) {
+    setSongs((prev) => prev.map((s) => {
+      if (s.id !== id) return s;
+      if (status === 'Published' && !s.releaseId) {
+        const rid = 'EP-' + String(songPubSeq).padStart(4, '0');
+        setSongPubSeq(n => n + 1);
+        return { ...s, status, releaseId: rid };
+      }
+      return { ...s, status };
+    }));
+  }
   function setPinSong(id) {setSongs((prev) => prev.map((s) => s.id === id ? { ...s, pinned: !s.pinned } : s));}
   function removeSong(id) {setSongs((prev) => prev.filter((s) => s.pinned || s.id !== id));}
 
@@ -4413,7 +4429,17 @@ Calm, warm, instrumental, no vocals.`;
     switchMode('pick');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  function setAlbumStatus(id, status) {setAlbums((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));}
+  function setAlbumStatus(id, status) {
+    setAlbums((prev) => prev.map((a) => {
+      if (a.id !== id) return a;
+      if (status === 'Published' && !a.releaseId) {
+        const rid = 'ALB-' + String(albumPubSeq).padStart(3, '0');
+        setAlbumPubSeq(n => n + 1);
+        return { ...a, status, releaseId: rid };
+      }
+      return { ...a, status };
+    }));
+  }
   function setPinAlbum(id) {setAlbums((prev) => prev.map((a) => a.id === id ? { ...a, pinned: !a.pinned } : a));}
   function removeAlbum(id) {setAlbums((prev) => prev.filter((a) => a.pinned || a.id !== id));}
 
