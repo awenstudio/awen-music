@@ -3848,7 +3848,7 @@ function ToastContainer({ toasts, onClose, onAction }) {
   // Direct MiMo API — calls xiaomimimo.com from the browser (CORS allowed).
   // API key is entered once via modal and stored in localStorage.
   const MIMO_URL   = 'https://token-plan-cn.xiaomimimo.com/v1/chat/completions';
-  const MIMO_MODEL = 'MiMo-7B-RL';
+  const MIMO_MODEL = 'mimo-v2.5-pro';
   const API_TIMEOUT_MS = 90000;
 
   // Safe localStorage wrappers — Safari private mode / quota errors will not crash the app.
