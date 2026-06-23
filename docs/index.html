@@ -3900,13 +3900,18 @@ function ToastContainer({ toasts, onClose, onAction }) {
         safeLS.del('awen_api_key');
         throw new Error(T('aiBadToken'));
       }
+      if (r.status === 402) {
+        throw new Error(window.I18N.isZh()
+          ? 'DeepSeek 余额不足，请到 platform.deepseek.com 充值后重试'
+          : 'DeepSeek balance is empty — top up at platform.deepseek.com and retry');
+      }
       if (!r.ok) {
         const err = await r.text().catch(() => '');
-        throw new Error(`MiMo ${r.status}: ${err.slice(0, 100)}`);
+        throw new Error(`DeepSeek ${r.status}: ${err.slice(0, 100)}`);
       }
       const data = await r.json();
       const text = data?.choices?.[0]?.message?.content ?? '';
-      if (!text) throw new Error('MiMo returned empty response');
+      if (!text) throw new Error('DeepSeek returned empty response');
       return text;
     } catch (e) {
       if (e.name === 'AbortError') throw new Error(T('aiTimeout'));
